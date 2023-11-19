@@ -1,51 +1,51 @@
 {
-  "id": "module",
-  "title": "New Module",
-  "description": "",
-  "version": "#{VERSION}#",
+  "id": "item_piles_auctioneer",
+  "title": "Item Piles: Auctioneer",
+  "description": "This module extends the Item Piles module to add support for an auctioneer NPC where players can buy and sell items among each other.",
+  "version": "100.0.0",
   "library": "false",
-  "manifestPlusVersion": "1.2.0",
+  "minimumCoreVersion": "11",
   "compatibility": {
-    "minimum": 10,
-    "verified": 10,
-    "maximum": 11
+    "minimum": "10",
+    "verified": "11",
+    "maximum": "11"
   },
   "authors": [
     {
-      "name": "The League of Extraordinary FVTT Developers",
-      "url": "https://github.com/League-of-Foundry-Developers",
-      "discord": "discordID#0001"
+      "name": "Wasp",
+      "url": "https://github.com/Haxxer",
+      "discord": "Wasp#2005"
     }
   ],
-  "relationships": {
-    "systems": [],
-    "requires": []
-  },
+  "packs": [],
   "esmodules": [
-    "scripts/module.js"
-  ],
-  "scripts": [
-    "scripts/lib/lib.js"
+    "module.js"
   ],
   "styles": [
-    "styles/module.css"
+    "style.css"
   ],
-  "languages": [
-    {
-      "lang": "en",
-      "name": "English",
-      "path": "languages/en.json"
-    }
-  ],
-  "url": "#{URL}#",
-  "manifest": "#{MANIFEST}#",
-  "download": "#{DOWNLOAD}#",
-  "license": "LICENSE",
-  "readme": "README.md",
-  "media": [
-    {
-      "type": "icon",
-      "url": "https://avatars2.githubusercontent.com/u/71292812?s=400&u=ccdb4eeb7abf551ca8f314e5a9bfd0479a4d3d41&v=4"
-    }
-  ]
+  "languages": [],
+  "relationships": {
+    "requires": [
+      {
+        "id": "item-piles",
+        "type": "module",
+        "compatibility": {
+          "minimum": "2.8.1",
+          "verified": "2.8.1"
+        }
+      },
+      {
+        "id": "socketlib",
+        "type": "module"
+      }
+    ]
+  },
+  "socket": true,
+  "url": "https://github.com/fantasycalendar/FoundryVTT-Auctioneer",
+  "manifest": "https://github.com/fantasycalendar/FoundryVTT-Auctioneer/releases/latest/download/manifest.json",
+  "download": "https://github.com/fantasycalendar/FoundryVTT-Auctioneer/releases/latest/download/module.zip",
+  "readme": "https://github.com/fantasycalendar/FoundryVTT-Auctioneer/blob/master/README.md",
+  "bugs": "https://github.com/fantasycalendar/FoundryVTT-Auctioneer/issues",
+  "allowBugReporter": true
 }
