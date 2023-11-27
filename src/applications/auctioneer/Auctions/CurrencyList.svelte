@@ -1,8 +1,5 @@
 <script>
 
-	import { getCurrencies } from "~/lib.js";
-	import { writable } from "svelte/store";
-	import { getContext } from "svelte";
 	import { slide } from "svelte/transition";
 
 	export let showPrice;
@@ -10,11 +7,10 @@
 	export let label;
 	export let currencyStore;
 	export let useSecondaryCurrencies;
+	export let tooltip;
 
 	export let caret = false;
 	export let clickable = true;
-
-	const store = getContext("store");
 
 	$: primaryCurrencies = $currencyStore.primaryCurrencies;
 	$: secondaryCurrencies = $currencyStore.secondaryCurrencies;
@@ -30,7 +26,7 @@
 
 </script>
 
-<div>
+<div data-tooltip={tooltip} data-tooltip-direction="UP">
 	<span class="auction-title" class:currency-expand={clickable} on:click={() => { showPrice = name; }}>
 		{label}
 		{#if caret}

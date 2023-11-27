@@ -84,7 +84,7 @@
 
 		<div class="character-currencies">
 			{#each $actorCurrencyStore as currency (currency.name)}
-				<div class="currency-list-item" data-tooltip={currency.name}>
+				<div class="currency-list-item" data-tooltip={`${currency.quantity} ${currency.name}`}>
 					<span>{lib.abbreviateNumbers(currency.quantity)}</span>
 					<img class="currency-list-img" src="{currency.img}"/>
 				</div>

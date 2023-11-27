@@ -4,10 +4,12 @@
 
 	const store = getContext("store");
 
+	$: tabs = Object.entries($store.tabs).filter(tab => !tab[1].hidden || !tab[1].hidden());
+
 </script>
 
 <div class="tabs">
-	{#each Object.entries($store.tabs) as [key, tab]}
+	{#each tabs as [key, tab]}
 		<div class="tab" class:active={key === $store.activeTab} on:click={() => { $store.activeTab = key }}>
 			<div class="shadow-tab"></div>
 			<span>{tab.label}</span>

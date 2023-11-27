@@ -91,22 +91,41 @@ export function dateNumberToRelativeString(auctioneer, date) {
 
 }
 
-export function getPriceFromData(priceFlag) {
+/**
+ * @param {string} priceFlag
+ * @param {boolean|Actor} actor
+ * @returns {{valid: boolean, totalPrice: number, canBuy: boolean, currencies: *[]}|(*&{valid: boolean, totalPrice: *, currencies: *})}
+ */
+export function getPriceFromData(priceFlag, actor = false) {
 
 	if (!priceFlag) {
 		return {
 			valid: false,
+			canBuy: false,
 			currencies: [],
 			totalPrice: 0
 		};
 	}
 
-	const paymentData = game.itempiles.API.getPaymentData(priceFlag);
+	const paymentData = game.itempiles.API.getPaymentData(priceFlag, { target: actor });
+
+	const currencies = paymentData.finalPrices.reverse();
+
+	let primaryCurrency;
+	for(const currency of currencies){
+		if(!currency.exchangeRate || currency.exchangeRate < 1) continue;
+		if(currency.exchangeRate === 1){
+			primaryCurrency = currency;
+		}else if(primaryCurrency && primaryCurrency.quantity >= (currency.exchangeRate * 1000)){
+			currency.quantity = Math.floor(primaryCurrency.quantity / currency.exchangeRate)
+			primaryCurrency.quantity -= Math.floor(primaryCurrency.quantity / currency.exchangeRate) * currency.exchangeRate;
+		}
+	}
 
 	return {
 		...paymentData,
 		valid: true,
-		currencies: paymentData.finalPrices.filter(currency => currency.quantity),
+		currencies: currencies.reverse().filter(currency => currency.quantity),
 		totalPrice: paymentData.totalCurrencyCost + paymentData.finalPrices
 			.filter(currency => currency.secondary && currency.quantity)
 			.reduce((acc, currency) => {
@@ -174,10 +193,11 @@ export function getCurrencies(actor) {
 
 }
 
-export function turnCurrenciesIntoString(currencies) {
+export function turnCurrenciesIntoString(currencies, abbreviate = false) {
 	return currencies.filter(currencies => currencies.quantity)
 		.reduce((acc, currency) => {
-			return `${acc} ${currency.abbreviation.replace('{#}', currency.quantity)}`;
+			const quantity = abbreviate ? abbreviateNumbers(currency.quantity) + " " : currency.quantity;
+			return `${acc} ${currency.abbreviation.replace('{#}', quantity)}`;
 		}, "").trim();
 }
 
@@ -197,14 +217,14 @@ const DATE_REGEX = new RegExp("^(\\d+)(\\w+)$", "g")
 export function evaluateFoundryTime(auctioneer, duration = "now") {
 	const flags = getAuctioneerActorFlags(auctioneer);
 
-	if(flags.timeType === CONSTANTS.AUCTION_TIME_TYPE_KEYS.REAL_TIME || !SimpleCalendar?.api) {
+	if(flags.timeType === CONSTANTS.AUCTION_TIME_TYPE_KEYS.REAL_TIME || !window?.SimpleCalendar?.api) {
 		if(duration === "now") return Date.now();
 		const parts = [...duration.matchAll(DATE_REGEX)];
 		const [_, number, dateType] = parts[0];
 		return moment().add(Number(number), dateType).valueOf();
 	}
 
-	const currentTimestamp = SimpleCalendar.api.timestamp();
+	const currentTimestamp = window?.SimpleCalendar.api.timestamp();
 	if(duration === "now") return currentTimestamp;
 
 	const parts = [...duration.matchAll(DATE_REGEX)];
@@ -218,9 +238,33 @@ export function evaluateFoundryTime(auctioneer, duration = "now") {
 		"years": "year",
 	}[dateType] ?? dateType;
 
-	return SimpleCalendar.api.timestampPlusInterval(currentTimestamp, {
+	return window?.SimpleCalendar.api.timestampPlusInterval(currentTimestamp, {
 		[newDateType]: Number(number)
 	});
+}
+
+export function dateTimeToString(auctioneer, datetime) {
+
+	const flags = getAuctioneerActorFlags(auctioneer);
+
+	if(flags.timeType === CONSTANTS.AUCTION_TIME_TYPE_KEYS.REAL_TIME || !window?.SimpleCalendar?.api) {
+		const diffDate = moment(datetime);
+		return moment.duration(diffDate.diff(moment())).humanize(true)
+	}
+
+	const timestamp = window?.SimpleCalendar.api.timestampToDate(datetime);
+
+	return `${timestamp.display.year}-${timestamp.display.month}-${timestamp.display.day} - ${timestamp.display.time}`;
+
+}
+
+function pluralize(str, doPluralize = true){
+	if(doPluralize) return str.endsWith("s") ? str : str + "s";
+	return str.endsWith("s") ? str.slice(0, -1) : str;
+}
+
+function capitalize(str){
+	return str.slice(0,1).toUpperCase() + str.slice(1);
 }
 
 export function getUserAuctions(user = false){
@@ -236,4 +280,12 @@ export function getUserBids(user = false){
 export function getUserBuyouts(user = false){
 	if(!user) user = game.user;
 	return foundry.utils.deepClone(user.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG) ?? []);
+}
+
+export function getItemColorElement(item){
+	const color = game.modules.get("rarity-colors")?.active && game.modules.get("rarity-colors")?.api
+		? game.modules.get("rarity-colors").api.getColorFromItem(item)
+		: false;
+	const rarity = capitalize(CONFIG?.DND5E?.itemRarity?.[item?.system?.rarity] ?? "");
+	return color ? `<i class="fas fa-circle rarity" data-tooltip="${rarity}" style="color: ${color};"></i> ` : "";
 }

@@ -1,7 +1,6 @@
 <script>
 	import AuctionItem from "./AuctionItem.svelte";
 	import { VirtualScroll } from "svelte-virtual-scroll-list";
-	import { applyStyles } from '#runtime/svelte/action/dom';
 
 	import { getContext } from "svelte";
 	import TopBar from "./TopBar.svelte";
@@ -9,8 +8,6 @@
 
 	const store = getContext("store");
 
-	const categoryStore = store.categories;
-	const flagStore = store.auctioneerFlags;
 	const searchRegexStore = store.searchRegex;
 	const selectedCategoriesStore = store.selectedCategories;
 
@@ -44,18 +41,13 @@
 		}
 	}
 
-	$: showReserve = $flagStore.reserveLimitVisibility !== "hidden";
-	$: columns = `${showReserve ? "390" : "575"}px 85px 110px 77px 155px${showReserve ? " 155px" : ""}`;
-
 </script>
 
 <TopBar/>
 
 <div class="browse">
 
-	<div class="item-list" use:applyStyles={{
-    "--item-piles-auctioneer-browse-columns": columns
-	}}>
+	<div class="item-list">
 
 		<SortByTabs class="browse" tab={$store.tabs["browse"]}/>
 

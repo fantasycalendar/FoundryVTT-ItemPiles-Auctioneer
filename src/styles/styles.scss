@@ -1,16 +1,16 @@
 :root {
   --item-piles-auctioneer-border: 1px solid rgba(0, 0, 0, 0.5);
   --item-piles-auctioneer-border-radius: 5px;
+  --item-piles-auctioneer-text-shadow-weak: 0 0 2px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, 1);
   --item-piles-auctioneer-text-shadow: 0 0 2px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, 1);
   --item-piles-auctioneer-ui-height: 0;
-  --item-piles-auctioneer-browse-columns: 580px 85px 110px 77px 150px;
 }
 
 .sort-by-tabs, .item-list-entry .item-row {
   display: grid;
 
   &.browse {
-    grid-template-columns: var(--item-piles-auctioneer-browse-columns);
+    grid-template-columns: 555px 85px 110px 77px 150px;
   }
 
   &.bids {
@@ -74,8 +74,8 @@
 
       input {
         height: 20px;
-        max-width: 65px;
-        min-width: 65px;
+        max-width: 85px;
+        min-width: 85px;
         padding-right: 22px;
         padding-left: 0.3rem;
         text-align: right;
@@ -186,7 +186,7 @@
       text-shadow: 0 0 8px rgba(0, 166, 7, 0.75);
     }
 
-    &.auction-expired .auction-status {
+    &.auction-expired .auction-status, &.auction-failed .auction-status {
       color: #260000;
       text-shadow: 0 0 8px rgba(189, 11, 11, 0.75);
     }
@@ -443,6 +443,59 @@
 
   .auction-post-button {
     margin-top: 0.25rem;
+  }
+
+}
+
+
+
+.log-entry {
+
+  display: flex;
+  padding: 0.15rem 0.25rem;
+  border-bottom: var(--item-piles-auctioneer-border);
+
+  span {
+    font-weight: bold;
+  }
+
+  .auction-created-log {
+    color: #008805;
+  }
+
+  .auction-bid-log {
+    color: #008868;
+  }
+
+  .auction-bid-log {
+    color: #6f8800;
+  }
+
+  .auction-expired-log {
+    color: #880000;
+  }
+
+  .auction-claimed-log {
+    color: #af6504;
+  }
+
+  .text {
+    flex: 1 0 auto;
+  }
+
+  .date {
+    flex: 0 1 auto;
+    margin-right: 0.35rem;
+    padding-right: 0.35rem;
+    border-right: var(--item-piles-auctioneer-border)
+  }
+
+  .rarity {
+    margin-left: 0.15rem;
+    font-size: 0.5rem;
+    text-shadow: var(--item-piles-auctioneer-text-shadow-weak);
+    line-height: inherit !important;
+    vertical-align: middle;
   }
 
 }

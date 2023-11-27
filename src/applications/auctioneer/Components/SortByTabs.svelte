@@ -19,7 +19,7 @@
 	{#each Object.entries(columns) as [key, column]}
 		{#if !column?.visible || column.visible($flagStore, $store)}
 			<div class="sort-tab">
-				{#if column.switch}
+				{#if column.switch && (!column.showSwitch || column.showSwitch($flagStore, $store))}
 					<i class="fas fa-refresh item-piles-clickable item-piles-clickable-link switch-tab" on:click={() => {
 						tab.switch = column.switch;
 						if(sortBy === key){

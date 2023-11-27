@@ -10,7 +10,20 @@
 
 	const store = getContext("store");
 
-	const currencyStore = writable(getValidCurrenciesForPrice(auction.startPriceData.currencies));
+	const validCurrencies = getValidCurrenciesForPrice(auction.startPriceData.currencies);
+
+	if(auction.minBidPrice){
+		validCurrencies.forEach(currency => {
+			const foundCurrency = auction.minBidPriceData.currencies.find(minBidCurrency => {
+				return minBidCurrency.name === currency.name && minBidCurrency.abbreviation === currency.abbreviation;
+			})
+			if(foundCurrency){
+				currency.quantity = foundCurrency.quantity;
+			}
+		})
+	}
+
+	const currencyStore = writable(validCurrencies);
 
 	$: currencyString = turnCurrenciesIntoString($currencyStore);
 
@@ -74,7 +87,7 @@
 						Bid
 					</ReactiveButton>
 				{/if}
-				{#if auction?.buyoutPriceData}
+				{#if auction?.buyoutPrice}
 					<ReactiveButton
 						disabled={auction.user === game.user || auction.expired || !auction.buyoutPrice}
 						callback={() => {

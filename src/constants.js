@@ -87,7 +87,8 @@ const CONSTANTS = {
 			claimed: false,
 			cancelled: false,
 			date: 0,
-			expiryDate: 0
+			expiryDate: 0,
+			claimedDate: 0
 		},
 		/**
 		 * @typedef {Object} Bid
@@ -102,6 +103,7 @@ const CONSTANTS = {
 			actorUuid: "",
 			price: "",
 			date: 0,
+			claimedDate: 0,
 			claimed: false
 		},
 		/**
@@ -117,6 +119,7 @@ const CONSTANTS = {
 			actorUuid: "",
 			price: "",
 			date: 0,
+			claimedDate: 0,
 			claimed: false
 		},
 	}
@@ -207,7 +210,7 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		label: "This determines what tracks the time of auctions of this auctioneer.",
 		type: String,
 		options: CONSTANTS.AUCTION_TIME_TYPE,
-		value: CONSTANTS.ACTOR_DEFAULTS.regularTime
+		value: CONSTANTS.ACTOR_DEFAULTS.timeType
 	},
 	minTimeLimit: {
 		title: "Minimum Time Limit",
@@ -225,7 +228,7 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 	},
 	entryItem: {
 		title: "Entry Item",
-		label: "AAAAAAAAAA.",
+		label: "Doesn't work yet.",
 		type: Item,
 		value: {}
 	}

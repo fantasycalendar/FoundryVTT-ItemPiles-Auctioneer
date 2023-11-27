@@ -11,17 +11,20 @@
 	const store = getContext("store");
 
 	$: selected = bid.auction.uuid === $store.tabs[$store.activeTab].selected;
+	$: auctionSucceeded = bid.auction.won ? bid.auction.won.user === game.user : false;
+	$: auctionFailed = bid.auction.won ? bid.auction.won.user !== game.user : false;
 
 </script>
 
 <div class="item-list-entry" class:selected={selected}>
 
 	<div class="item-row {$$props.class ?? ''}"
-	     class:auction-won={bid.bidStatus.won ?? false}
+	     class:auction-won={auctionSucceeded}
+	     class:auction-failed={auctionFailed}
 	     on:click={() => { store.entryClicked(bid.auction.uuid) }}
 	>
 		<ItemName auction={bid.auction}/>
-		<div class="auction-entry-text">
+		<div class="auction-entry-text auction-status">
 			{bid.auction.timeLeft.label}
 		</div>
 		{#if bid.auction.buyoutPriceData}
@@ -29,7 +32,7 @@
 				<div class="item-price">
 					{#each bid.auction.buyoutPriceData.currencies as currency (currency.id)}
 						<div class="price">
-							<span>{lib.abbreviateNumbers(currency.quantity)}</span>
+							<span>{currency.quantity}</span>
 							<img src={currency.img}>
 						</div>
 					{/each}
@@ -43,14 +46,14 @@
 		<div class="auction-entry-text">
 			{CONSTANTS.BID_VISIBILITY_UI_LABELS[bid.auction.bidVisibility]}
 		</div>
-		<div class="auction-entry-text auction-status">
+		<div class="auction-entry-text">
 			{bid.bidStatus.label}
 		</div>
 		<div class="item-prices">
 			<div class="item-price">
 				{#each bid.auction.bidPriceData.currencies as currency (currency.id)}
 					<div class="price">
-						<span>{lib.abbreviateNumbers(currency.quantity)}</span>
+						<span>{currency.quantity}</span>
 						<img src={currency.img}>
 					</div>
 				{/each}
@@ -59,7 +62,7 @@
 				<div class="item-price blind-price">
 					{#each bid.auction.startPriceData.currencies as currency (currency.id)}
 						<div class="price">
-							<span>{lib.abbreviateNumbers(currency.quantity)}</span>
+							<span>{currency.quantity}</span>
 							<img src={currency.img}>
 						</div>
 					{/each}

@@ -20,6 +20,7 @@
 	let showPrice = "bids";
 	const useSecondaryCurrencies = writable(false);
 	const currencies = getCurrencies(store.auctioneer);
+	const hasSecondaryCurrencies = currencies.some(currency => currency.secondary);
 
 	const bidCurrencies = CurrencyStore(store);
 	const buyoutCurrencies = CurrencyStore(store);
@@ -125,8 +126,8 @@
 			quantityPerAuction: $potentialAuctionStore.quantityPerAuction,
 			itemData: $potentialAuctionStore.itemData,
 			uuid: $potentialAuctionStore.uuid,
-			bidVisibility: $potentialAuctionStore.bidVisibility ?? $flagStore.auctionBidVisibility,
-			reserveLimitVisibility: $potentialAuctionStore.reserveLimitVisibility ?? $flagStore.reserveLimitVisibility,
+			bidVisibility: $bidVisibility,
+			reserveLimitVisibility: $reserveLimitVisibility,
 			bidCurrencies: bidCurrencies.exportCurrencies(),
 			buyoutCurrencies: buyoutCurrencies.exportCurrencies(),
 			minBidCurrencies: minBidCurrencies.exportCurrencies(),
@@ -171,17 +172,17 @@
 				<button type="button" on:click={setMaxPerAuction} disabled={!$itemDocStore}>Max</button>
 			{/if}
 		</div>
-		<div class="auction-title">
+		<div class="auction-title" data-tooltip-direction="UP" data-tooltip="When enabled, this makes the price of the auction be multiplied by the quantity of the item in that auction">
 			<span>Price is per quantity:</span>
 			<input bind:checked={$potentialAuctionStore.priceIsPerQuantity} type="checkbox"/>
 		</div>
-		{#if $flagStore.allowSecondaryCurrencies}
-			<div class="auction-title auction-border-top">
+		{#if $flagStore.allowSecondaryCurrencies && hasSecondaryCurrencies}
+			<div class="auction-title auction-border-top" data-tooltip-direction="UP" data-tooltip="When enabled, this switches the currencies for this auction to use the alternative currencies">
 				<input bind:checked={$useSecondaryCurrencies} type="checkbox"/> Use Other Currencies
 			</div>
 		{/if}
 		{#if $flagStore.auctionBidVisibility === CONSTANTS.VISIBILITY_KEYS.USER}
-			<div class="auction-title auction-border-top">Bids Visibility</div>
+			<div class="auction-title auction-border-top" data-tooltip-direction="UP" data-tooltip="This setting makes bids either visible or blind - the latter meaning people can only see their own bids">Bids Visibility</div>
 		{/if}
 		{#if $flagStore.auctionBidVisibility === CONSTANTS.VISIBILITY_KEYS.USER}
 			<div class="auction-title auction-visibility">
@@ -197,40 +198,40 @@
 				</div>
 			</div>
 		{:else if $flagStore.auctionBidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE}
-			<div class="auction-title auction-border-top">
-				<input type="radio" bind:group={$bidVisibility} value={CONSTANTS.VISIBILITY_KEYS.VISIBLE} hidden/>
+			<div class="auction-title auction-border-top" data-tooltip-direction="UP" data-tooltip="Bids for this auction will always be visible">
 				<span>Visible Bids</span>
 			</div>
 		{:else if $flagStore.auctionBidVisibility === CONSTANTS.VISIBILITY_KEYS.HIDDEN}
-			<div class="auction-title auction-border-top">
-				<input type="radio" bind:group={$bidVisibility} value={CONSTANTS.VISIBILITY_KEYS.HIDDEN} hidden/>
+			<div class="auction-title auction-border-top" data-tooltip-direction="UP" data-tooltip="Bids for this auction will always be blind - people can only see their own bids">
 				<span>Hidden Bids</span>
 			</div>
 		{/if}
 		<div class="price-currencies-container-pair auction-border-top">
 			<CurrencyList bind:showPrice clickable={$flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
-			              currencyStore={bidCurrencies} label="Starting Bid"
+			              currencyStore={bidCurrencies} label="Starting Bid" tooltip="Starting price for bids"
 			              name="bids" {useSecondaryCurrencies}/>
 			<CurrencyList bind:showPrice caret={$flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
 			              clickable={$flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
-			              currencyStore={buyoutCurrencies} label="Buyout Price"
+			              currencyStore={buyoutCurrencies} label="Buyout Price" tooltip="Price to pay to instantly win this auction"
 			              name="bids" {useSecondaryCurrencies}/>
 		</div>
 		{#if $flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
 			<div class="price-currencies-container-pair auction-border-top">
 				{#if $flagStore.enableMinimumBid}
 					<CurrencyList bind:showPrice currencyStore={minBidCurrencies} label="Minimum Bid" name="minmax"
+					              tooltip="This is the minimum amount someone must pay to be able to bid on this auction"
 					              {useSecondaryCurrencies} caret={!$flagStore.enableReserveLimit}/>
 				{/if}
 				{#if $flagStore.enableReserveLimit}
 					<CurrencyList bind:showPrice currencyStore={reserveCurrencies} label="Reserve" name="minmax"
+					              tooltip="This is the amount that the bids of this auction must reach in order for the auction to succeed"
 					              {useSecondaryCurrencies} caret={!$flagStore.enableMinimumBid}/>
 				{/if}
 			</div>
 		{/if}
 		{#if $flagStore.enableReserveLimit}
 			{#if $flagStore.reserveLimitVisibility === CONSTANTS.VISIBILITY_KEYS.USER}
-				<div class="auction-title auction-border-top">Reserve Visibility</div>
+				<div class="auction-title auction-border-top" data-tooltip-direction="UP" data-tooltip="This setting controls whether the reserve amount is visible or not">Reserve Visibility</div>
 			{/if}
 			{#if $flagStore.reserveLimitVisibility === CONSTANTS.VISIBILITY_KEYS.USER}
 				<div class="auction-title auction-visibility">
@@ -246,13 +247,11 @@
 					</div>
 				</div>
 			{:else if $flagStore.reserveLimitVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE}
-				<div class="auction-title auction-border-top">
-					<input type="radio" bind:group={$reserveLimitVisibility} value={CONSTANTS.VISIBILITY_KEYS.VISIBLE} hidden/>
+				<div class="auction-title auction-border-top" data-tooltip-direction="UP" data-tooltip="Reserve amount is always visible">
 					<span>Visible Reserve</span>
 				</div>
 			{:else if $flagStore.reserveLimitVisibility === CONSTANTS.VISIBILITY_KEYS.HIDDEN}
-				<div class="auction-title auction-border-top">
-					<input type="radio" bind:group={$reserveLimitVisibility} value={CONSTANTS.VISIBILITY_KEYS.HIDDEN} hidden/>
+				<div class="auction-title auction-border-top" data-tooltip-direction="UP" data-tooltip="Reserve amount is always hidden">
 					<span>Hidden Reserve</span>
 				</div>
 			{/if}

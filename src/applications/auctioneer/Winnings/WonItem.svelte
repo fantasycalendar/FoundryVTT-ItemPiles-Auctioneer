@@ -26,7 +26,7 @@
 			<div class="item-price">
 				{#each auction.startPriceData.currencies as currency (currency.id)}
 					<div class="price">
-						<span>{lib.abbreviateNumbers(currency.quantity)}</span>
+						<span>{currency.quantity}</span>
 						<img src={currency.img}>
 					</div>
 				{/each}
@@ -35,7 +35,7 @@
 				<div class="item-price buyout-price">
 					{#each auction.buyoutPriceData.currencies as currency (currency.id)}
 						<div class="price">
-							<span>{lib.abbreviateNumbers(currency.quantity)}</span>
+							<span>{currency.quantity}</span>
 							<img src={currency.img}>
 						</div>
 					{/each}
@@ -46,7 +46,7 @@
 			<div class="item-price">
 				{#each auction.won.priceData.currencies as currency (currency.id)}
 					<div class="price">
-						<span>{lib.abbreviateNumbers(currency.quantity)}</span>
+						<span>{currency.quantity}</span>
 						<img src={currency.img}>
 					</div>
 				{/each}
