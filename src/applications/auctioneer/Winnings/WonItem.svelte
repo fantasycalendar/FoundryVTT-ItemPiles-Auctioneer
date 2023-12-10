@@ -2,7 +2,6 @@
 	import { getContext } from "svelte";
 	import ItemName from "~/applications/auctioneer/Components/ItemName.svelte";
 	import AuctionEntryButtons from "~/applications/auctioneer/Components/AuctionEntryButtons.svelte";
-	import * as lib from "~/lib.js"
 
 	export let auction;
 

@@ -34,6 +34,20 @@
   padding: 0.15rem;
   --tjs-app-overflow: visible;
 
+  &.dialog .dialog-content {
+    text-align: center;
+
+    p {
+      margin-top: 0;
+    }
+
+    .dialog-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
   & > section {
     border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
@@ -47,6 +61,20 @@
     &:disabled {
       opacity: 0.65;
     }
+  }
+
+  .access-denied {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border-radius: 5px;
+    z-index: 50;
+    left: 0.55rem;
+    right: 0.55rem;
+    top: 30px;
+    bottom: 42px;
   }
 
   .character-bottom-bar {
@@ -274,7 +302,7 @@
   display: flex;
   flex-direction: column;
   height: calc(var(--item-piles-auctioneer-ui-height) - 84px);
-  padding: 0.25rem;
+  padding: 0.25rem 0 0.25rem 0.25rem;
   border: var(--item-piles-auctioneer-border);
   border-radius: var(--item-piles-auctioneer-border-radius);
 
@@ -286,12 +314,19 @@
     max-height: calc(var(--item-piles-auctioneer-ui-height) - 123px);
     overflow-x: hidden;
     overflow-y: auto;
+    padding-right: 0.25rem;
 
     .auction-title {
       display: flex;
       justify-content: center;
       align-items: center;
       width: 100%;
+
+      &.small-warning{
+        font-size: 0.75rem;
+        color: #640000;
+        text-align: center;
+      }
     }
 
     .auction-visibility {
@@ -352,12 +387,17 @@
     .stack-container {
       display: grid;
       grid-template-columns: 1fr 40px 45px;
-      margin: 0.25rem 0;
+      margin: 0.15rem 0;
       grid-gap: 0.15rem;
       text-align: center;
 
       & > * {
         margin: 0;
+      }
+
+      input, button {
+        height: 20px;
+        line-height: 0;
       }
     }
 
@@ -365,6 +405,16 @@
       select {
         height: 20px;
         margin-left: 0.25rem;
+      }
+    }
+
+    .auction-deposit {
+      display: flex;
+      flex-direction: column;
+
+      .cant-afford {
+        color: #8c0e0e;
+        font-weight: bold;
       }
     }
 
@@ -441,8 +491,14 @@
     }
   }
 
-  .auction-post-button {
+  .auction-post-buttons {
+    display: flex;
+    flex-direction: column;
     margin-top: 0.25rem;
+
+    button {
+      margin: 0;
+    }
   }
 
 }

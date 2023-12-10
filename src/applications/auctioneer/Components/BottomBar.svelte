@@ -9,11 +9,13 @@
 	const store = getContext("store");
 
 	const actorDocStore = store.actorDoc;
+	const flagStore = store.auctioneerFlags;
 	const actorUuidStore = store.actorUuid;
 	const actorCurrencyStore = store.actorCurrencies;
 
 	const validActors = game.actors.filter(actor => {
-		return actor.isOwner;
+		return actor.isOwner
+			|| (flagStore.allowBankerVaults && actor.getFlag("item_piles_bankers", "vaultUserId") === game.userId);
 	}).map(actor => {
 			const actorFlagData = game.itempiles.API.getActorFlagData(actor);
 			return {
@@ -21,7 +23,7 @@
 				label: actor.name,
 				hasPlayerOwner: actor.hasPlayerOwner,
 				group: !actor.hasPlayerOwner
-					? (actorFlagData.enabled ? "Item Pile" : "Other Characters")
+					? (actorFlagData.enabled ? (actorFlagData?.type === "vault" ? "Vault" : "Item Pile") : "Other Characters")
 					: "Player Characters",
 				itemPile: actorFlagData.enabled
 			}
@@ -37,9 +39,9 @@
 
 	const selectedItem = writable(validActors.find(actor => {
 		return actor.value === $actorUuidStore;
-	}) ?? validActors[0]);
+	}) ?? validActors?.[0]);
 
-	$: $actorUuidStore = $selectedItem.value;
+	$: $actorUuidStore = $selectedItem?.value;
 	$: auctions = $store.auctionData.auctions;
 
 </script>
@@ -92,7 +94,7 @@
 		</div>
 	</div>
 
-	{#if $store.activeTab === "auctions" || $store.activeTab === "wins" || $store.activeTab === "bids"}
+	{#if $store.access && ($store.activeTab === "auctions" || $store.activeTab === "wins" || $store.activeTab === "bids")}
 		<div class="buttons">
 			{#if $store.activeTab === "auctions"}
 				<ReactiveButton

@@ -2,19 +2,20 @@ import { get, writable } from "svelte/store";
 import { TJSDocument } from "@typhonjs-fvtt/runtime/svelte/store/fvtt/document";
 import CONSTANTS from "~/constants.js";
 import * as lib from "~/lib.js";
+import { getCurrencies } from "~/lib.js";
 import Browse from "~/applications/auctioneer/Browse/Browse.svelte";
 import Bids from "~/applications/auctioneer/Bids/Bids.svelte";
 import Auctions from "~/applications/auctioneer/Auctions/Auctions.svelte";
 import Winnings from "~/applications/auctioneer/Winnings/Winnings.svelte";
 import Logs from "~/applications/auctioneer/Logs/Logs.svelte";
-import { getPriceFromData } from "~/lib.js";
 
-export default function (auctioneer) {
+export function createStore(auctioneer) {
 
 	const store = writable({
 		itemsPerPage: 12,
 		currentPage: 1,
 		totalPages: 1,
+		access: true,
 		tabs: {
 			"browse": {
 				label: "Browse",
@@ -148,10 +149,66 @@ export default function (auctioneer) {
 		filteredAuctions: [],
 		visibleAuctions: [],
 		sortedBids: [],
-		bidCurrencies: []
+		bidCurrencies: [],
+	});
+
+	const auctionItemStore = new TJSDocument();
+	const newAuctionStore = writable({
+		uuid: false,
+		numAuctions: 1,
+		quantityPerAuction: 1,
+		hiddenQuantity: false,
+		itemData: false,
+		itemCost: false,
+		depositPrice: false,
 	});
 
 	const { set, update, subscribe } = store;
+
+	async function onDropData(dropData) {
+
+		if (get(store).activeTab !== "auctions") return;
+
+		const item = await Item.implementation.fromDropData(dropData);
+
+		if (!item?.parent?.isOwner && !game.user.isGM) return;
+
+		const currencies = getCurrencies(auctioneer);
+
+		if (currencies.some(currency => {
+			return currency.data.item
+				&& currency.data.item.name === item.name
+				&& currency.data.item.type === item.type
+				&& currency.data.item.img === item.img
+		})) {
+			return;
+		}
+
+		if (game.itempiles.API.isItemInvalid(item)) {
+			return;
+		}
+
+		const canItemStack = game.itempiles.API.canItemStack(item);
+		const itemQuantity = game.itempiles.API.getItemQuantity(item);
+		const itemCost = game.itempiles.API.getCostOfItem(item);
+		let depositPrice = 0;
+		const flags = get(auctioneerFlags);
+		if (flags?.auctionDeposit) {
+			const auctionDepositRoll = lib.evaluateFormula(flags?.auctionDeposit, { itemCost });
+			depositPrice = auctionDepositRoll ? auctionDepositRoll.total : flags?.auctionDeposit;
+		}
+
+		auctionItemStore.set(item);
+		newAuctionStore.set({
+			uuid: dropData.uuid,
+			numAuctions: 1,
+			quantityPerAuction: canItemStack ? itemQuantity : 1,
+			hiddenQuantity: !canItemStack,
+			itemData: item.toObject(),
+			itemCost,
+			depositPrice,
+		});
+	}
 
 	// Debounced method to update the auctioneer's auction data when data is changed
 	function updateAuctionData() {
@@ -174,9 +231,15 @@ export default function (auctioneer) {
 	Simple calendar tends to touch update world time, the date updated hook is only local, meaning other users do not get
 	the updated date
   */
+  let lastUpdate = null;
 	const calendarHookId = Hooks.on("updateWorldTime", () => {
-		if (!window?.SimpleCalendar) return;
+		if (Date.now() < (lastUpdate + 10000)
+      || get(auctioneerFlags).timeType === CONSTANTS.AUCTION_TIME_TYPE_KEYS.REAL_TIME
+      || !window?.SimpleCalendar){
+      return;
+    }
 		debounceUpdateAuctionData();
+    lastUpdate = Date.now();
 	});
 
 	updateAuctionData();
@@ -257,13 +320,13 @@ export default function (auctioneer) {
 
 		let minimumBidPrice = latestBidPrice ?? auction.startPrice;
 
-		if(auction.minBidPrice) {
+		if (auction.minBidPrice) {
 			minimumBidPrice = game.itempiles.API.calculateCurrencies(minimumBidPrice, auction.minBidPrice, false);
 		}
 
 		const latestBidPaymentData = lib.getPriceFromData(minimumBidPrice);
 
-		if(lib.isPriceHigherThan(latestBidPaymentData, bidPaymentData)){
+		if (lib.isPriceHigherThan(latestBidPaymentData, bidPaymentData)) {
 			ui.notifications.warn(`Insufficient bid - you must bid more than ${minimumBidPrice}`);
 			return;
 		}
@@ -274,6 +337,7 @@ export default function (auctioneer) {
 
 		existingBids.push({
 			id: randomID(),
+      userId: game.userId,
 			auctionUuid: existingBids?.[existingBidForAuctionIndex]?.uuid ?? auction.uuid,
 			price: bidPaymentData.basePriceString,
 			date: lib.evaluateFoundryTime(auctioneer)
@@ -302,7 +366,9 @@ export default function (auctioneer) {
 		const existingBuyouts = lib.getUserBuyouts();
 		existingBuyouts.push({
 			id: randomID(),
+      userId: game.userId,
 			auctionUuid: auction.uuid,
+			actorUuid: targetActor.uuid,
 			price: auction.buyoutPrice,
 			date: lib.evaluateFoundryTime(auctioneer)
 		});
@@ -310,10 +376,17 @@ export default function (auctioneer) {
 		return game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG, existingBuyouts);
 	}
 
+	const auctioneerDoc = new TJSDocument(auctioneer);
+
+	/**
+	 * {ActorFlagDefaults}
+	 */
+	const auctioneerFlags = writable(CONSTANTS.ACTOR_DEFAULTS);
+
 	const selectedActorUuids = game.user.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.USER_AUCTIONEER_FLAGS) ?? {};
 
 	const selectedCharacterUuid = selectedActorUuids?.[auctioneer.id] ?? game.user.character?.uuid;
-	const actorUuid = writable(selectedCharacterUuid);
+	const actorUuid = writable("");
 	const actorDoc = new TJSDocument();
 	const actorCurrencies = writable(lib.getCurrencies(auctioneer));
 
@@ -325,7 +398,18 @@ export default function (auctioneer) {
 		game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.USER_AUCTIONEER_FLAGS, {
 			[auctioneer.id]: uuid
 		});
+		evaluateAccess();
 	});
+
+	const auctioneerUnsubscribe = auctioneerDoc.subscribe(() => {
+		auctioneerFlags.update(() => {
+			updateActorCurrencies();
+			return lib.getAuctioneerActorFlags(auctioneer);
+		})
+		evaluateAccess();
+	});
+
+	actorUuid.set(selectedCharacterUuid);
 
 	function updateActorCurrencies() {
 		const doc = get(actorDoc);
@@ -343,23 +427,22 @@ export default function (auctioneer) {
 		});
 	}
 
+	function evaluateAccess() {
+		const doc = get(actorDoc);
+		if (!doc) return;
+		const flags = get(auctioneerFlags);
+		if (!flags.entryItem?.data) return;
+		const foundSimilarItem = game.itempiles.API.findSimilarItem(doc.items, flags.entryItem.data);
+		update(data => {
+			data.access = !!foundSimilarItem || game.user.isGM;
+			return data;
+		})
+	}
+
 	const actorDocUnsubscribe = actorDoc.subscribe((doc) => {
 		if (!doc) return;
 		updateActorCurrencies();
 	})
-
-	const auctioneerDoc = new TJSDocument(auctioneer);
-
-	/**
-	 * {ActorFlagDefaults}
-	 */
-	const auctioneerFlags = writable(CONSTANTS.ACTOR_DEFAULTS);
-	const auctioneerUnsubscribe = auctioneerDoc.subscribe(() => {
-		auctioneerFlags.update(() => {
-			updateActorCurrencies();
-			return lib.getAuctioneerActorFlags(auctioneer);
-		})
-	});
 
 	function unsubscribe() {
 		Hooks.off("updateUser", userHookId);
@@ -369,13 +452,25 @@ export default function (auctioneer) {
 		auctioneerUnsubscribe();
 	}
 
-	async function postAuctions(data) {
+	async function createAuctions(data) {
 
-		const bidPriceString = lib.turnCurrenciesIntoString(data.bidCurrencies);
-		const bidPriceData = bidPriceString ? lib.getPriceFromData(bidPriceString) : false;
+		let bidPriceString = lib.turnCurrenciesIntoString(data.bidCurrencies);
+		let bidPriceData = false;
+		if (bidPriceString) {
+			if (data.priceIsPerQuantity) {
+				bidPriceString = game.itempiles.API.calculateCurrencies(bidPriceString, data.quantityPerAuction);
+			}
+			bidPriceData = lib.getPriceFromData(bidPriceString);
+		}
 
-		const buyoutPriceString = lib.turnCurrenciesIntoString(data.buyoutCurrencies);
-		const buyoutPriceData = buyoutPriceString ? lib.getPriceFromData(buyoutPriceString) : false;
+		let buyoutPriceString = lib.turnCurrenciesIntoString(data.buyoutCurrencies);
+		let buyoutPriceData = false;
+		if (buyoutPriceString) {
+			if (data.priceIsPerQuantity) {
+				buyoutPriceString = game.itempiles.API.calculateCurrencies(buyoutPriceString, data.quantityPerAuction);
+			}
+			buyoutPriceData = lib.getPriceFromData(buyoutPriceString);
+		}
 
 		if (!bidPriceString && !buyoutPriceString) {
 			ui.notifications.error("The item cannot be free!")
@@ -387,25 +482,38 @@ export default function (auctioneer) {
 			return false;
 		}
 
-		const reservePriceString = lib.turnCurrenciesIntoString(data.reserveCurrencies);
-		const reservePriceData = reservePriceString ? lib.getPriceFromData(reservePriceString) : false;
+		let reservePriceString = lib.turnCurrenciesIntoString(data.reserveCurrencies);
+		let reservePriceData = false;
+		if (reservePriceString) {
+			if (data.priceIsPerQuantity) {
+				reservePriceString = game.itempiles.API.calculateCurrencies(reservePriceString, data.quantityPerAuction);
+			}
+			reservePriceData = lib.getPriceFromData(reservePriceString);
+		}
 
 		if (bidPriceData && reservePriceData && lib.isPriceHigherThan(bidPriceData, reservePriceData)) {
 			ui.notifications.error("The reserve price cannot be lower or equal to the starting bid price!")
 			return false;
 		}
 
-		const minBidPriceString = lib.turnCurrenciesIntoString(data.minBidCurrencies);
+		let minBidPriceString = lib.turnCurrenciesIntoString(data.minBidCurrencies);
+		if (minBidPriceString && data.priceIsPerQuantity) {
+			minBidPriceString = game.itempiles.API.calculateCurrencies(minBidPriceString, data.quantityPerAuction);
+		}
 
 		const actor = get(actorDoc);
 
+		setProperty(data.itemData, game.itempiles.API.ITEM_QUANTITY_ATTRIBUTE, data.quantityPerAuction);
+
 		const baseFlagData = {
+      userId: game.userId,
 			actorUuid: actor.uuid,
 			itemData: data.itemData,
 			startPrice: bidPriceString,
 			buyoutPrice: buyoutPriceString,
 			minBidPrice: minBidPriceString,
 			reservePrice: reservePriceString,
+			depositPrice: data.baseDepositPrice,
 			quantity: data.quantityPerAuction,
 			bidVisibility: data.bidVisibility,
 			reserveLimitVisibility: data.reserveLimitVisibility,
@@ -420,16 +528,19 @@ export default function (auctioneer) {
 			const id = randomID();
 			auctions.push({
 				id,
-				uuid: `${id}-${auctioneer.uuid}-${game.user.uuid}`,
+				uuid: `${id}-${auctioneer.uuid}-${game.user.id}`,
 				...baseFlagData
 			});
 		}
 
 		const item = await fromUuid(data.uuid);
-		if (item.parent && actor) {
+		if (item?.parent && actor) {
 			await game.itempiles.API.removeItems(actor, [{
 				_id: item.id, quantity: data.quantityPerAuction * data.numAuctions
 			}]);
+			if (data.depositPrice) {
+				await game.itempiles.API.removeCurrencies(actor, data.depositPrice);
+			}
 		}
 
 		return game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.AUCTIONS_FLAG, auctions);
@@ -444,6 +555,17 @@ export default function (auctioneer) {
 		const itemsToCreate = [];
 		let successfulAuctionCurrencies = [];
 		let failedBidCurrencies = [];
+
+		if(cancelled){
+			let content = `<p>Are you sure you want to cancel this auction?</p>`;
+			content += flags.auctionDeposit && ownedAuctions[0].depositPrice
+				? `<p>You will lose the deposit of <strong>${ownedAuctions[0].depositPrice}</strong>.</p>`
+				: '';
+			const proceed = await Dialog.confirm({
+				title: "Cancel Auction", content, options: { classes: ["dialog", "item-piles-auctioneer"] }
+			});
+			if (!proceed) return;
+		}
 
 		let ownAuctions = lib.getUserAuctions();
 		let ownBids = lib.getUserBids();
@@ -460,7 +582,7 @@ export default function (auctioneer) {
 			}));
 
 			for (const auction of successfulAuctions) {
-				successfulAuctionCurrencies.push(auction.won.price);
+				successfulAuctionCurrencies.push({ price: auction.won.price, deposit: auction.depositPrice });
 			}
 
 			ownAuctions = ownAuctions.map(existingAuction => {
@@ -493,7 +615,7 @@ export default function (auctioneer) {
 				}
 
 				ownBids = ownBids.map(existingBid => {
-					if (existingBid.claimed || auction.won.uuid !== existingBid.uuid) return existingBid;
+					if (existingBid.claimed || auction.won.id !== existingBid.id) return existingBid;
 					return {
 						claimed: true,
 						claimedDate: lib.evaluateFoundryTime(auctioneer),
@@ -503,7 +625,7 @@ export default function (auctioneer) {
 
 				if (auction.won.type === "buyout") {
 					ownBuyouts = ownBuyouts.map(existingBuyout => {
-						if (existingBuyout.claimed || auction.won.uuid !== existingBuyout.uuid) return existingBuyout;
+						if (existingBuyout.claimed || auction.won.id !== existingBuyout.id) return existingBuyout;
 						return {
 							claimed: true,
 							claimedDate: lib.evaluateFoundryTime(auctioneer),
@@ -514,27 +636,42 @@ export default function (auctioneer) {
 			}
 		}
 
-		if (actor && itemsToCreate.length) await game.itempiles.API.addItems(actor, itemsToCreate);
-		if (actor && (successfulAuctionCurrencies.length || failedBidCurrencies.length)){
+		if (actor && itemsToCreate.length) {
+			if (actor.getFlag("item-piles", "data")?.type === "vault") {
+				const canEveryItemFit = itemsToCreate.every(data => {
+					return game.itempiles.API.canItemFitInVault(data.item, actor, data.quantity);
+				});
+				if (!canEveryItemFit) {
+					ui.notifications.warn("You cannot claim this item as there is no more space in your vault!")
+					return;
+				}
+			}
+			await game.itempiles.API.addItems(actor, itemsToCreate);
+		}
+		if (actor && (successfulAuctionCurrencies.length || failedBidCurrencies.length)) {
 			let totalFee = "";
 			let totalCurrenciesToAdd = ""
 			const auctionFee = Math.max(0, flags.auctionFee ?? 0);
-			for(const successfulAuctionCurrency of successfulAuctionCurrencies){
+			for (const { price, deposit } of successfulAuctionCurrencies) {
 
-				if(flags.auctionFee) {
-					const fee = game.itempiles.API.calculateCurrencies(successfulAuctionCurrency, auctionFee / 100);
+				if (flags.auctionFee) {
+					const fee = game.itempiles.API.calculateCurrencies(price, auctionFee / 100);
 					totalFee = totalFee
 						? game.itempiles.API.calculateCurrencies(totalFee, fee, false)
 						: fee;
 				}
 
-				const currency = game.itempiles.API.calculateCurrencies(successfulAuctionCurrency, (100-auctionFee) / 100);
+				const currency = game.itempiles.API.calculateCurrencies(price, (100 - auctionFee) / 100);
 				totalCurrenciesToAdd = totalCurrenciesToAdd
 					? game.itempiles.API.calculateCurrencies(totalCurrenciesToAdd, currency, false)
 					: currency;
+
+				if (deposit) {
+					totalCurrenciesToAdd = game.itempiles.API.calculateCurrencies(totalCurrenciesToAdd, deposit, false);
+				}
 			}
 
-			for(const failedBidCurrency of failedBidCurrencies){
+			for (const failedBidCurrency of failedBidCurrencies) {
 				totalCurrenciesToAdd = totalCurrenciesToAdd
 					? game.itempiles.API.calculateCurrencies(totalCurrenciesToAdd, failedBidCurrency, false)
 					: failedBidCurrency;
@@ -542,7 +679,7 @@ export default function (auctioneer) {
 
 			await game.itempiles.API.addCurrencies(actor, totalCurrenciesToAdd);
 			let message = `${totalCurrenciesToAdd} was added to ${actor.name}`;
-			if(totalFee){
+			if (totalFee) {
 				message += ` - ${totalFee} was claimed as auction fees.`
 			}
 			ui.notifications.info(message)
@@ -561,6 +698,54 @@ export default function (auctioneer) {
 		const indexToRefresh = existingAuctions.findIndex(existingAuction => existingAuction.uuid === auction.uuid);
 		existingAuctions[indexToRefresh].date = lib.evaluateFoundryTime(auctioneer)
 		existingAuctions[indexToRefresh].expiryDate = lib.evaluateFoundryTime(auctioneer, existingAuctions[indexToRefresh].duration);
+		const actor = get(actorDoc);
+		const flags = get(auctioneerFlags);
+		if (flags.auctionDeposit && existingAuctions[indexToRefresh].depositPrice) {
+			const depositPriceData = lib.getPriceFromData(existingAuctions[indexToRefresh].depositPrice, actor);
+			if (!depositPriceData.canBuy) {
+				if (game.user.isGM) {
+					const proceed = await Dialog.confirm({
+						title: "Relist Failed Auction",
+						content: `<p>${actor.name} can't afford the deposit of <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> - are you sure you want to relist this auction?</p>`,
+						options: { classes: ["dialog", "item-piles-auctioneer"] }
+					});
+					if (!proceed) return;
+				} else {
+					return Dialog.prompt({
+						title: "Cannot Relist Failed Auction",
+						content: `<p>You cannot relist this auction, as ${actor.name} cannot afford the deposit of <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> to do so.</p>`,
+						options: { classes: ["dialog", "item-piles-auctioneer"] }
+					});
+				}
+			} else {
+				if (game.user.isGM) {
+					let ignoreDeposit = false;
+					const proceed = await Dialog.confirm({
+						title: "Relist Failed Auction",
+						content: `
+							<p>By relisting this auction, ${actor.name} must pay <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> - are you sure you want to do this?</p>
+							<p class="dialog-center"><input type="checkbox"><span>Ignore deposit payment</span></p>
+						`,
+						yes: (html) => {
+							ignoreDeposit = html.find("input").is(":checked")
+						},
+						options: { classes: ["dialog", "item-piles-auctioneer"] }
+					});
+					if (!proceed) return;
+					if(!ignoreDeposit) {
+						await game.itempiles.API.removeCurrencies(actor, existingAuctions[indexToRefresh].depositPrice);
+					}
+				}else {
+					const proceed = await Dialog.confirm({
+						title: "Relist Failed Auction",
+						content: `<p>By relisting this auction, ${actor.name} must pay <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> - are you sure you want to do this?</p>`,
+						options: { classes: ["dialog", "item-piles-auctioneer"] }
+					});
+					if (!proceed) return;
+					await game.itempiles.API.removeCurrencies(actor, existingAuctions[indexToRefresh].depositPrice);
+				}
+			}
+		}
 		ui.notifications.notify(`The auction for ${auction.item.name} has been relisted.`);
 		return game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.AUCTIONS_FLAG, existingAuctions);
 	}
@@ -570,6 +755,11 @@ export default function (auctioneer) {
 		update,
 		subscribe,
 		unsubscribe,
+
+		auctionItemStore,
+		onDropData,
+		newAuctionStore,
+
 		searchClicked,
 		decrementPage,
 		incrementPage,
@@ -578,7 +768,7 @@ export default function (auctioneer) {
 		bidOnItem,
 		buyoutItem,
 
-		postAuctions,
+		createAuctions,
 		claimAuctions,
 		relistAuction,
 
@@ -607,7 +797,7 @@ export default function (auctioneer) {
  * @param {Actor} auctioneer
  * @return {AuctionData}
  */
-function getAuctioneerActorData(auctioneer) {
+export function getAuctioneerActorData(auctioneer) {
 
 	const auctions = {};
 	const bids = {};
@@ -618,9 +808,9 @@ function getAuctioneerActorData(auctioneer) {
 		const userBids = lib.getUserBids(user);
 		const userBuyouts = lib.getUserBuyouts(user);
 		return {
-			auctionFlags: acc.auctionFlags.concat(userAuctions.map(source => ({ ...source, userUuid: user.uuid }))),
-			bidFlags: acc.bidFlags.concat(userBids.map(source => ({ ...source, userUuid: user.uuid }))),
-			buyoutFlags: acc.buyoutFlags.concat(userBuyouts.map(source => ({ ...source, userUuid: user.uuid }))),
+			auctionFlags: acc.auctionFlags.concat(userAuctions),
+			bidFlags: acc.bidFlags.concat(userBids),
+			buyoutFlags: acc.buyoutFlags.concat(userBuyouts),
 		}
 	}, { auctionFlags: [], bidFlags: [], buyoutFlags: [] });
 
@@ -629,59 +819,16 @@ function getAuctioneerActorData(auctioneer) {
 	buyoutFlags.sort((a, b) => b.date - a.date);
 
 	auctionFlags.filter(source => {
-		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userUuid);
+		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userId);
 	}).forEach(source => {
-		const auction = {};
-		auction._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.AUCTION), source);
-		auction.type = "auction";
-		auction.id = auction._source.id;
-		auction.uuid = auction._source.uuid;
-		auction.cancelled = auction._source.cancelled;
-		auction.claimed = auction._source.claimed;
-		auction.item = new Item.implementation(auction._source.itemData)
-		auction.user = fromUuidSync(auction._source.userUuid);
-		auction.actor = auction._source.actorUuid ? fromUuidSync(auction._source.actorUuid) : false;
-		auction.date = auction._source.date;
-		auction.claimedDate = auction._source.claimedDate;
-		auction.expiryDate = auction._source.expiryDate;
-		auction.expired = lib.evaluateFoundryTime(auctioneer) >= auction._source.expiryDate;
-		auction.timeLeft = lib.dateNumberToRelativeString(auctioneer, auction._source.expiryDate);
-		auction.quantity = auction._source.quantity;
-		auction.bidVisibility = auction._source.bidVisibility;
-		auction.startPrice = auction._source.startPrice;
-		auction.buyoutPrice = auction._source.buyoutPrice;
-		auction.reservePrice = auction._source.reservePrice;
-		auction.minBidPrice = auction._source.minBidPrice;
-
-		auction.startPriceData = lib.getPriceFromData(auction._source.startPrice);
-		auction.buyoutPriceData = lib.getPriceFromData(auction._source.buyoutPrice);
-		auction.reservePriceData = lib.getPriceFromData(auction._source.reservePrice);
-		auction.minBidPriceData = lib.getPriceFromData(auction._source.minBidPrice);
-
-		auction.won = false;
-		auction.bids = [];
-		auction.bidPriceData = false;
-		auction.highestOwnedBid = false;
-
+		const auction = lib.makeAuction(auctioneer, source);
 		auctions[auction.uuid] = auction;
 	});
 
 	buyoutFlags.filter(source => {
 		return source.auctionUuid.includes("-" + auctioneer.uuid + "-") && auctions[source.auctionUuid];
 	}).forEach(source => {
-		const buyout = {};
-		buyout._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.BUYOUT), source);
-		buyout.type = "buyout";
-		buyout.id = buyout._source.id;
-		buyout.date = buyout._source.date;
-		buyout.user = fromUuidSync(buyout._source.userUuid);
-		buyout.actor = buyout._source.actorUuid ? fromUuidSync(buyout._source.actorUuid) : false;
-		buyout.priceData = lib.getPriceFromData(buyout._source.price);
-		buyout.price = buyout._source.price;
-		buyout.claimed = buyout._source.claimed;
-		buyout.auction = auctions[buyout._source.auctionUuid];
-		buyout.auction.won = buyout;
-
+		const buyout = lib.makeBuyout(auctioneer, source, auctions);
 		buyouts[buyout.id] = buyout;
 	});
 
@@ -690,23 +837,8 @@ function getAuctioneerActorData(auctioneer) {
 			&& auctions[source.auctionUuid]
 			&& !auctions[source.auctionUuid].won;
 	}).forEach(source => {
-		const bid = {};
-		bid._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.BID), source);
-
-		bid.type = "bid";
-		bid.id = bid._source.id;
-		bid.date = bid._source.date;
-		bid.user = fromUuidSync(bid._source.userUuid);
-		bid.actor = bid._source.actorUuid ? fromUuidSync(bid._source.actorUuid) : false;
-		bid.priceData = lib.getPriceFromData(bid._source.price);
-		bid.price = bid._source.price;
-		bid.claimed = bid._source.claimed;
-		bid.bidStatus = { value: -Infinity, label: "Low Bid" };
-		bid.auction = auctions[bid._source.auctionUuid];
-		bid.auction.bids.push(bid);
-
+    const bid = lib.makeBid(auctioneer, source, auctions);
 		bids[bid.id] = bid;
-
 	});
 
 	for (const auction of Object.values(auctions)) {
@@ -734,15 +866,24 @@ function getAuctioneerActorData(auctioneer) {
 			}
 		}
 
-		auction.highBidder = auction.bids?.[0]?.user;
-
-		if (auction.expired && auction.bids.length) {
-			if(!auction.reservePrice || !lib.isPriceHigherThan(auction.bids[0].priceData, auction.reservePriceData)){
-				auction.won = auction.bids[0];
-				if(auction.user === game.user) {
-					auction.timeLeft = {
-						label: "Auction Succeeded",
-						value: Infinity
+		if (auction.won) {
+			if (auction.user === game.user) {
+				auction.timeLeft = {
+					label: "Auction Succeeded",
+					value: Infinity
+				}
+			}
+			auction.highBidder = auction.won.user.name + " (buyout)";
+		} else {
+			auction.highBidder = auction.bids?.[0]?.user?.name;
+			if (auction.expired && auction.bids.length) {
+				if (!auction.reservePrice || !lib.isPriceHigherThan(auction.bids[0].priceData, auction.reservePriceData)) {
+					auction.won = auction.bids[0];
+					if (auction.user === game.user) {
+						auction.timeLeft = {
+							label: "Auction Succeeded",
+							value: Infinity
+						}
 					}
 				}
 			}

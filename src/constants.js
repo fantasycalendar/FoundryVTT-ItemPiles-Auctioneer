@@ -14,6 +14,12 @@ const CONSTANTS = {
 	AUCTIONS_FLAG: "auctions",
 	BIDS_FLAG: "bids",
 	BUYOUTS_FLAG: "buyouts",
+	LOGS_FLAG: "logs",
+
+	AUCTIONS_FULL_FLAG: `flags.${module_name}.auctions`,
+	BIDS_FULL_FLAG: `flags.${module_name}.bids`,
+	BUYOUTS_FULL_FLAG: `flags.${module_name}.buyouts`,
+	LOGS_FULL_FLAG: `flags.${module_name}.logs`,
 
 	AUCTIONEER: "auctioneer",
 
@@ -22,25 +28,32 @@ const CONSTANTS = {
 	/**
 	 * @typedef {Object} ActorFlagDefaults
 	 * @property {number} auctionFee
+	 * @property {string} auctionDeposit
 	 * @property {boolean} allowSecondaryCurrencies
 	 * @property {boolean} enableMinimumBid
 	 * @property {boolean} enableReserveLimit
+	 * @property {boolean} visibleTimeLeft
 	 * @property {string} auctionBidVisibility
 	 * @property {string} reserveLimitVisibility
 	 * @property {AuctionTimeType} timeType
 	 * @property {string} minTimeLimit
 	 * @property {string} maxTimeLimit
+	 * @property {boolean} displayEntryItem
 	 */
 	ACTOR_DEFAULTS: {
 		auctionFee: 5,
+		auctionDeposit: "@itemCost * 0.05",
 		allowSecondaryCurrencies: true,
 		enableMinimumBid: false,
 		enableReserveLimit: false,
+		visibleTimeLeft: false,
+		allowBankerVaults: true,
 		auctionBidVisibility: "user",
 		reserveLimitVisibility: "visible",
 		timeType: "realTime",
 		minTimeLimit: "12hours",
 		maxTimeLimit: "2days",
+    displayEntryItem: false,
 	},
 
 	AUCTION_TIME_LIMITS: {
@@ -62,11 +75,16 @@ const CONSTANTS = {
 	DEFAULTS: {
 		/**
 		 * @typedef {Object} Auction
+     * @property {String} id
+     * @property {String} userId
 		 * @property {String} uuid
-		 * @property {String} ownerActorUuid
+		 * @property {String} actorUuid
 		 * @property {Object} item
-		 * @property {Number} startPrice
-		 * @property {Number} buyoutPrice
+		 * @property {String} startPrice
+		 * @property {String} buyoutPrice
+		 * @property {String} minBidPrice
+		 * @property {String} reservePrice
+		 * @property {String} depositPrice
 		 * @property {Number} quantity
 		 * @property {String} bidVisibility
 		 * @property {Number} date
@@ -74,6 +92,7 @@ const CONSTANTS = {
 		 */
 		AUCTION: {
 			id: "",
+      userId: "",
 			uuid: "AUCTIONID-AUCTIONEERUUID-USERUUID",
 			actorUuid: "",
 			itemData: {},
@@ -81,10 +100,12 @@ const CONSTANTS = {
 			buyoutPrice: "",
 			minBidPrice: "",
 			reservePrice: "",
+			depositPrice: "",
 			quantity: 1,
 			bidVisibility: "visible",
 			reserveLimitVisibility: "visible",
 			claimed: false,
+			gmClaimed: false,
 			cancelled: false,
 			date: 0,
 			expiryDate: 0,
@@ -93,12 +114,14 @@ const CONSTANTS = {
 		/**
 		 * @typedef {Object} Bid
 		 * @property {String} id
+     * @property {String} userId
 		 * @property {String} auctionUuid
 		 * @property {Number} price
 		 * @property {Number} date
 		 */
 		BID: {
 			id: "",
+      userId: "",
 			auctionUuid: "",
 			actorUuid: "",
 			price: "",
@@ -109,12 +132,14 @@ const CONSTANTS = {
 		/**
 		 * @typedef {Object} Buyout
 		 * @property {String} id
+		 * @property {String} userId
 		 * @property {String} auctionUuid
 		 * @property {Number} price
 		 * @property {Number} date
 		 */
 		BUYOUT: {
 			id: "",
+      userId: "",
 			auctionUuid: "",
 			actorUuid: "",
 			price: "",
@@ -168,10 +193,16 @@ CONSTANTS.RESERVE_VISIBILITY_LABELS = {
 
 CONSTANTS.AUCTIONEER_SETTINGS = {
 	auctionFee: {
-		title: "Auction Fee",
-		label: "This is the percentage cut the auctioneer takes of any successful auction.",
+		title: "Auction Fee Formula",
+		label: "This is the percentage of the total sell price that the auctioneer takes as a cut from any successful auction.",
 		type: Number,
 		value: CONSTANTS.ACTOR_DEFAULTS.auctionFee
+	},
+  auctionDeposit: {
+		title: "Deposit Fee Formula",
+		label: "This is the formula to calculate the price that someone must pay to put up an auction.",
+		type: String,
+		value: CONSTANTS.ACTOR_DEFAULTS.auctionDeposit
 	},
 	auctionBidVisibility: {
 		title: "Bid Visibility",
@@ -185,6 +216,12 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		label: "This determines whether the auctioneer accepts secondary currencies for its auctions",
 		type: Boolean,
 		value: CONSTANTS.ACTOR_DEFAULTS.allowSecondaryCurrencies
+	},
+  visibleTimeLeft: {
+		title: "Show full time left",
+		label: "When enabled, instead of 'very long' or 'short' strings for auction duration, this will show an exact amount of time left before auctions expire.",
+		type: Boolean,
+		value: CONSTANTS.ACTOR_DEFAULTS.visibleTimeLeft
 	},
 	enableMinimumBid: {
 		title: "Enable Minimum Bid Limit",
@@ -226,12 +263,24 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		options: CONSTANTS.AUCTION_TIME_LIMITS,
 		value: CONSTANTS.ACTOR_DEFAULTS.maxTimeLimit
 	},
+  allowBankerVaults: {
+    title: "Allow banker vault impersonation",
+    label: "When enabled, this allows users to impersonate the vaults connected to bankers when interacting with the auctioneer. They can buy and sell items with it.",
+    type: Boolean,
+    value: CONSTANTS.ACTOR_DEFAULTS.allowBankerVaults
+  },
 	entryItem: {
 		title: "Entry Item",
-		label: "Doesn't work yet.",
+		label: "This configures an item that the character must possess in their inventory in order to access the auction house.",
 		type: Item,
-		value: {}
-	}
+		value: false
+	},
+  displayEntryItem: {
+    title: "Display Entry Item",
+    label: "This determines whether the auctioneer accepts secondary currencies for its auctions",
+    type: Boolean,
+    value: CONSTANTS.ACTOR_DEFAULTS.displayEntryItem
+  },
 };
 
 export default CONSTANTS;

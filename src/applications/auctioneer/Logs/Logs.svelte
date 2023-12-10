@@ -7,76 +7,24 @@
 	import BidLog from "~/applications/auctioneer/Logs/BidLog.svelte";
 	import BuyoutLog from "~/applications/auctioneer/Logs/BuyoutLog.svelte";
 	import ClaimedAuctionLog from "~/applications/auctioneer/Logs/ClaimedAuctionLog.svelte";
-	import { evaluateFoundryTime } from "~/lib.js";
-	import { writable } from "svelte/store";
-	import CancelledAuctionLog from "~/applications/auctioneer/Logs/CancelledAuctionLog.svelte";
+  import CancelledAuctionLog from "~/applications/auctioneer/Logs/CancelledAuctionLog.svelte";
+  import { getLogs } from "~/lib.js";
+  import { writable } from "svelte/store";
 
 	const store = getContext("store");
 
+  const componentTypes = {
+    AuctionLog,
+    ExpiredAuctionLog,
+    BidLog,
+    BuyoutLog,
+    ClaimedAuctionLog,
+    CancelledAuctionLog,
+  }
+
+  const auctioneerDoc = store.auctioneerDoc;
 	let allEntries = writable([]);
-	$: {
-		const currentDatetime = evaluateFoundryTime(store.auctioneer);
-		allEntries.update(() => {
-			return $store.auctionData.auctions
-				.map(auction => {
-					const auctions = [{
-						data: auction,
-						component: AuctionLog,
-						id: auction.id,
-						date: auction.date,
-						visible: true
-					}];
-					if (auction.expired && !auction.won && !auction.cancelled) {
-						auctions.push({
-							data: auction,
-							component: ExpiredAuctionLog,
-							id: auction.id + "-expired",
-							date: auction.expiryDate,
-							visible: true
-						});
-					}
-					if (auction.expired && auction.claimed && !auction.cancelled && currentDatetime >= auction.claimedDate) {
-						auctions.push({
-							data: auction,
-							component: ClaimedAuctionLog,
-							id: auction.id + "-claimed",
-							date: auction.claimedDate,
-							visible: true
-						});
-					}
-					if (auction.cancelled && auction.claimed && currentDatetime >= auction.claimedDate) {
-						auctions.push({
-							data: auction,
-							component: CancelledAuctionLog,
-							id: auction.id + "-cancelled",
-							date: auction.claimedDate,
-							visible: true
-						});
-					}
-					return auctions;
-				})
-				.concat($store.auctionData.bids.map(bid => {
-					return [{
-						data: bid,
-						component: BidLog,
-						id: bid.id,
-						date: bid.date,
-						visible: true
-					}]
-				}))
-				.concat($store.auctionData.buyouts.map(buyout => {
-					return [{
-						data: buyout,
-						component: BuyoutLog,
-						id: buyout.id,
-						date: buyout.date,
-						visible: true
-					}]
-				}))
-				.deepFlatten()
-				.sort((a, b) => b.date - a.date);
-		})
-	}
+	$: $allEntries = getLogs($auctioneerDoc, $store.auctionData).logs;
 
 	const searchDebounce = foundry.utils.debounce((searchText) => {
 		allEntries.update(entries => {
@@ -118,7 +66,7 @@
 			key="id"
 			let:data
 		>
-			<svelte:component entry={data} this={data.component}/>
+			<svelte:component entry={data} this={componentTypes[data.type]}/>
 		</VirtualScroll>
 	</div>
 </div>

@@ -16,6 +16,10 @@ export default class Auctioneer extends SvelteApplication {
 		this.actor = options.auctioneer;
 	}
 
+	onDropData(data){
+		return this.store.onDropData(data);
+	}
+
 	/** @inheritdoc */
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
@@ -30,6 +34,10 @@ export default class Auctioneer extends SvelteApplication {
 			closeOnSubmit: false,
 			focusAuto: false,
 		});
+	}
+
+	get store() {
+		return this.svelte.applicationShell.store;
 	}
 
 	static async show(options = {}, dialogData = {}) {

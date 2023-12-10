@@ -5,7 +5,6 @@
 	import SortByTabs from "~/applications/auctioneer/Components/SortByTabs.svelte";
 	import OwnAuctionItem from "~/applications/auctioneer/Auctions/OwnAuctionItem.svelte";
 	import CreateAuctionSidebar from "~/applications/auctioneer/Auctions/CreateAuctionSidebar.svelte";
-	import { writable } from "svelte/store";
 
 	const store = getContext("store");
 

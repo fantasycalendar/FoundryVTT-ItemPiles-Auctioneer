@@ -4,7 +4,6 @@
 	import { getContext } from "svelte";
 	import ItemName from "~/applications/auctioneer/Components/ItemName.svelte";
 	import AuctionEntryButtons from "~/applications/auctioneer/Components/AuctionEntryButtons.svelte";
-	import * as lib from "~/lib.js"
 
 	export let auction;
 
@@ -29,7 +28,7 @@
 			{auction.timeLeft.label}
 		</div>
 		<div class="auction-entry-text">
-			{auction.highBidder?.name ?? "No bids"}
+			{auction.highBidder || "No bids"}
 		</div>
 		<div class="auction-entry-text">
 			{CONSTANTS.BID_VISIBILITY_UI_LABELS[auction.bidVisibility]}

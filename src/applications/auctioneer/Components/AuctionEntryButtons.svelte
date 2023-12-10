@@ -59,7 +59,7 @@
 			                disabled={!auction.expired && !auction.won}>
 				Collect
 			</ReactiveButton>
-			<ReactiveButton callback={() => store.claimAuctions([auction], true)} completelyDisable
+			<ReactiveButton callback={() => store.claimAuctions([auction], true)}
 			                disabled={auction.expired || auction.won}>
 				Cancel
 			</ReactiveButton>
