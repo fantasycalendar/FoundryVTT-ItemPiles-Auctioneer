@@ -18,8 +18,8 @@
 <div class="item-list-entry" class:selected={selected}>
 
 	<div class="item-row {$$props.class ?? ''}"
-	     class:auction-won={auctionSucceeded}
 	     class:auction-failed={auctionFailed}
+	     class:auction-won={auctionSucceeded}
 	     on:click={() => { store.entryClicked(bid.auction.uuid) }}
 	>
 		<ItemName auction={bid.auction}/>

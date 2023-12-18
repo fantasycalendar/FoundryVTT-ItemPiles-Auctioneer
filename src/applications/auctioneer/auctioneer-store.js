@@ -26,9 +26,9 @@ export function createStore(auctioneer) {
 				switch: "price",
 				sortByColumns: {
 					"name": { label: "Name", sort: (a, b) => a.item.name > b.item.name ? 1 : -1 },
-					"time": { label: "Time Left", sort: (a, b) => b.timeLeft.value - a.timeLeft.value },
+					"time": { label: "Time", sort: (a, b) => b.timeLeft.value - a.timeLeft.value },
 					"seller": { label: "Seller", sort: (a, b) => a.actor.name > b.actor.name ? 1 : -1 },
-					"bid-type": { label: "Bid Type", sort: (a, b) => a.bidVisibility > b.bidVisibility ? 1 : -1 },
+					"bid-type": { label: "Type", sort: (a, b) => a.bidVisibility > b.bidVisibility ? 1 : -1 },
 					"price": {
 						label: "Price / Buyout",
 						sort: (a, b) => b.bidPriceData.totalPrice - a.bidPriceData.totalPrice,
@@ -61,7 +61,7 @@ export function createStore(auctioneer) {
 				sortByInverse: false,
 				sortByColumns: {
 					"name": { label: "Name", sort: (a, b) => a.auction.item.name > b.auction.item.name ? 1 : -1 },
-					"time": { label: "Time Left", sort: (a, b) => b.auction.timeLeft.value - a.auction.timeLeft.value },
+					"time": { label: "Time", sort: (a, b) => b.auction.timeLeft.value - a.auction.timeLeft.value },
 					"price": {
 						label: "Buyout Price", sort: (a, b) => {
 							if (!b.auction.buyoutPrice && a.auction.buyoutPrice) {
@@ -72,8 +72,8 @@ export function createStore(auctioneer) {
 							return b.auction.buyoutPriceData.totalPrice - a.auction.buyoutPriceData.totalPrice;
 						}
 					},
-					"bid-type": { label: "Bid Type", sort: (a, b) => a.auction.bidVisibility > b.auction.bidVisibility ? 1 : -1 },
-					"bid-status": { label: "Bid Status", sort: (a, b) => b.bidStatus.value - a.bidStatus.value },
+					"bid-type": { label: "Bid", sort: (a, b) => a.auction.bidVisibility > b.auction.bidVisibility ? 1 : -1 },
+					"bid-status": { label: "Status", sort: (a, b) => b.bidStatus.value - a.bidStatus.value },
 					"bid": {
 						label: "Current Bid",
 						sort: (a, b) => b.bidPriceData.totalPrice - a.bidPriceData.totalPrice
@@ -89,9 +89,9 @@ export function createStore(auctioneer) {
 				switch: "price",
 				sortByColumns: {
 					"name": { label: "Name", sort: (a, b) => a.item.name > b.item.name ? 1 : -1 },
-					"time": { label: "Time Left", sort: (a, b) => b.timeLeft.value - a.timeLeft.value },
+					"time": { label: "Time", sort: (a, b) => b.timeLeft.value - a.timeLeft.value },
 					"high-bidder": { label: "High Bidder", sort: (a, b) => a.actor.name > b.actor.name ? 1 : -1 },
-					"bid-type": { label: "Bid Type", sort: (a, b) => a.bidVisibility > b.bidVisibility ? 1 : -1 },
+					"bid-type": { label: "Type", sort: (a, b) => a.bidVisibility > b.bidVisibility ? 1 : -1 },
 					"price": {
 						label: "Bid/Reserve Price",
 						sort: (a, b) => {
@@ -231,15 +231,15 @@ export function createStore(auctioneer) {
 	Simple calendar tends to touch update world time, the date updated hook is only local, meaning other users do not get
 	the updated date
   */
-  let lastUpdate = null;
+	let lastUpdate = null;
 	const calendarHookId = Hooks.on("updateWorldTime", () => {
 		if (Date.now() < (lastUpdate + 10000)
-      || get(auctioneerFlags).timeType === CONSTANTS.AUCTION_TIME_TYPE_KEYS.REAL_TIME
-      || !window?.SimpleCalendar){
-      return;
-    }
+			|| get(auctioneerFlags).timeType === CONSTANTS.AUCTION_TIME_TYPE_KEYS.REAL_TIME
+			|| !window?.SimpleCalendar) {
+			return;
+		}
 		debounceUpdateAuctionData();
-    lastUpdate = Date.now();
+		lastUpdate = Date.now();
 	});
 
 	updateAuctionData();
@@ -320,8 +320,8 @@ export function createStore(auctioneer) {
 
 		let minimumBidPrice = latestBidPrice ?? auction.startPrice;
 
-		if (auction.minBidPrice) {
-			minimumBidPrice = game.itempiles.API.calculateCurrencies(minimumBidPrice, auction.minBidPrice, false);
+		if (auction.actualMininumBidPrice) {
+			minimumBidPrice = game.itempiles.API.calculateCurrencies(minimumBidPrice, auction.actualMininumBidPrice, false);
 		}
 
 		const latestBidPaymentData = lib.getPriceFromData(minimumBidPrice);
@@ -337,7 +337,7 @@ export function createStore(auctioneer) {
 
 		existingBids.push({
 			id: randomID(),
-      userId: game.userId,
+			userId: game.userId,
 			auctionUuid: existingBids?.[existingBidForAuctionIndex]?.uuid ?? auction.uuid,
 			price: bidPaymentData.basePriceString,
 			date: lib.evaluateFoundryTime(auctioneer)
@@ -366,7 +366,7 @@ export function createStore(auctioneer) {
 		const existingBuyouts = lib.getUserBuyouts();
 		existingBuyouts.push({
 			id: randomID(),
-      userId: game.userId,
+			userId: game.userId,
 			auctionUuid: auction.uuid,
 			actorUuid: targetActor.uuid,
 			price: auction.buyoutPrice,
@@ -473,7 +473,7 @@ export function createStore(auctioneer) {
 		}
 
 		if (!bidPriceString && !buyoutPriceString) {
-			ui.notifications.error("The item cannot be free!")
+			ui.notifications.error("The item cannot be free - the auction must have a start bid price or a buyout price!");
 			return false;
 		}
 
@@ -506,7 +506,7 @@ export function createStore(auctioneer) {
 		setProperty(data.itemData, game.itempiles.API.ITEM_QUANTITY_ATTRIBUTE, data.quantityPerAuction);
 
 		const baseFlagData = {
-      userId: game.userId,
+			userId: game.userId,
 			actorUuid: actor.uuid,
 			itemData: data.itemData,
 			startPrice: bidPriceString,
@@ -556,7 +556,7 @@ export function createStore(auctioneer) {
 		let successfulAuctionCurrencies = [];
 		let failedBidCurrencies = [];
 
-		if(cancelled){
+		if (cancelled) {
 			let content = `<p>Are you sure you want to cancel this auction?</p>`;
 			content += flags.auctionDeposit && ownedAuctions[0].depositPrice
 				? `<p>You will lose the deposit of <strong>${ownedAuctions[0].depositPrice}</strong>.</p>`
@@ -696,24 +696,26 @@ export function createStore(auctioneer) {
 	async function relistAuction(auction) {
 		const existingAuctions = lib.getUserAuctions();
 		const indexToRefresh = existingAuctions.findIndex(existingAuction => existingAuction.uuid === auction.uuid);
-		existingAuctions[indexToRefresh].date = lib.evaluateFoundryTime(auctioneer)
-		existingAuctions[indexToRefresh].expiryDate = lib.evaluateFoundryTime(auctioneer, existingAuctions[indexToRefresh].duration);
+		const duplicatedAuction = foundry.utils.duplicate(existingAuctions[indexToRefresh]);
+		existingAuctions[indexToRefresh].claimed = true;
+		duplicatedAuction.date = lib.evaluateFoundryTime(auctioneer)
+		duplicatedAuction.expiryDate = lib.evaluateFoundryTime(auctioneer, duplicatedAuction.duration);
 		const actor = get(actorDoc);
 		const flags = get(auctioneerFlags);
-		if (flags.auctionDeposit && existingAuctions[indexToRefresh].depositPrice) {
-			const depositPriceData = lib.getPriceFromData(existingAuctions[indexToRefresh].depositPrice, actor);
+		if (flags.auctionDeposit && duplicatedAuction.depositPrice) {
+			const depositPriceData = lib.getPriceFromData(duplicatedAuction.depositPrice, actor);
 			if (!depositPriceData.canBuy) {
 				if (game.user.isGM) {
 					const proceed = await Dialog.confirm({
 						title: "Relist Failed Auction",
-						content: `<p>${actor.name} can't afford the deposit of <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> - are you sure you want to relist this auction?</p>`,
+						content: `<p>${actor.name} can't afford the deposit of <strong>${duplicatedAuction.depositPrice}</strong> - are you sure you want to relist this auction?</p>`,
 						options: { classes: ["dialog", "item-piles-auctioneer"] }
 					});
 					if (!proceed) return;
 				} else {
 					return Dialog.prompt({
 						title: "Cannot Relist Failed Auction",
-						content: `<p>You cannot relist this auction, as ${actor.name} cannot afford the deposit of <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> to do so.</p>`,
+						content: `<p>You cannot relist this auction, as ${actor.name} cannot afford the deposit of <strong>${duplicatedAuction.depositPrice}</strong> to do so.</p>`,
 						options: { classes: ["dialog", "item-piles-auctioneer"] }
 					});
 				}
@@ -723,7 +725,7 @@ export function createStore(auctioneer) {
 					const proceed = await Dialog.confirm({
 						title: "Relist Failed Auction",
 						content: `
-							<p>By relisting this auction, ${actor.name} must pay <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> - are you sure you want to do this?</p>
+							<p>By relisting this auction, ${actor.name} must pay <strong>${duplicatedAuction.depositPrice}</strong> - are you sure you want to do this?</p>
 							<p class="dialog-center"><input type="checkbox"><span>Ignore deposit payment</span></p>
 						`,
 						yes: (html) => {
@@ -732,20 +734,21 @@ export function createStore(auctioneer) {
 						options: { classes: ["dialog", "item-piles-auctioneer"] }
 					});
 					if (!proceed) return;
-					if(!ignoreDeposit) {
-						await game.itempiles.API.removeCurrencies(actor, existingAuctions[indexToRefresh].depositPrice);
+					if (!ignoreDeposit) {
+						await game.itempiles.API.removeCurrencies(actor, duplicatedAuction.depositPrice);
 					}
-				}else {
+				} else {
 					const proceed = await Dialog.confirm({
 						title: "Relist Failed Auction",
-						content: `<p>By relisting this auction, ${actor.name} must pay <strong>${existingAuctions[indexToRefresh].depositPrice}</strong> - are you sure you want to do this?</p>`,
+						content: `<p>By relisting this auction, ${actor.name} must pay <strong>${duplicatedAuction.depositPrice}</strong> - are you sure you want to do this?</p>`,
 						options: { classes: ["dialog", "item-piles-auctioneer"] }
 					});
 					if (!proceed) return;
-					await game.itempiles.API.removeCurrencies(actor, existingAuctions[indexToRefresh].depositPrice);
+					await game.itempiles.API.removeCurrencies(actor, duplicatedAuction.depositPrice);
 				}
 			}
 		}
+		existingAuctions.push(duplicatedAuction);
 		ui.notifications.notify(`The auction for ${auction.item.name} has been relisted.`);
 		return game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.AUCTIONS_FLAG, existingAuctions);
 	}
@@ -837,7 +840,7 @@ export function getAuctioneerActorData(auctioneer) {
 			&& auctions[source.auctionUuid]
 			&& !auctions[source.auctionUuid].won;
 	}).forEach(source => {
-    const bid = lib.makeBid(auctioneer, source, auctions);
+		const bid = lib.makeBid(auctioneer, source, auctions);
 		bids[bid.id] = bid;
 	});
 
@@ -855,10 +858,10 @@ export function getAuctioneerActorData(auctioneer) {
 			auction.bidPrice = auction.bids.length ? ownedBids[0].price : false;
 		}
 
-		auction.minBidPrice = auction.minBidPrice
+		auction.actualMininumBidPrice = auction.minBidPrice && auction.bidPrice
 			? game.itempiles.API.calculateCurrencies(auction.bidPrice, auction.minBidPrice, false)
-			: auction.bidPrice || auction.startPrice;
-		auction.minBidPriceData = lib.getPriceFromData(auction.minBidPrice);
+			: auction.minBidPrice || auction.bidPrice;
+		auction.actualMininumBidPriceData = lib.getPriceFromData(auction.actualMininumBidPrice);
 
 		if (auction.bids.length && auction.buyoutPrice) {
 			if (lib.isPriceHigherThan(auction.bids[0].priceData, auction.buyoutPriceData)) {

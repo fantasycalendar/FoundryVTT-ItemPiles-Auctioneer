@@ -64,10 +64,10 @@
         margin-left: 0.35rem;
       }
 
-	    i.switch-tab {
+      i.switch-tab {
         margin-left: 0;
         margin-right: 0.35rem;
-	    }
+      }
     }
   }
 

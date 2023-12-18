@@ -10,15 +10,15 @@
   display: grid;
 
   &.browse {
-    grid-template-columns: 555px 85px 110px 77px 150px;
+    grid-template-columns: 553px 85px 110px 79px 150px;
   }
 
   &.bids {
-    grid-template-columns: 401px 85px 150px 77px 110px 155px;
+    grid-template-columns: 399px 85px 150px 79px 110px 155px;
   }
 
   &.auctions {
-    grid-template-columns: 340px 85px 100px 77px 165px;
+    grid-template-columns: 338px 85px 100px 79px 165px;
   }
 
   &.wins {
@@ -33,6 +33,13 @@
 .item-piles-auctioneer {
   padding: 0.15rem;
   --tjs-app-overflow: visible;
+
+  &.sheet {
+    max-width: 1000px;
+    max-height: var(--item-piles-auctioneer-ui-height);
+    min-width: 1000px;
+    min-height: var(--item-piles-auctioneer-ui-height);
+  }
 
   &.dialog .dialog-content {
     text-align: center;
@@ -150,7 +157,7 @@
 
   .item-row {
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     height: 38px;
     cursor: pointer;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -199,7 +206,7 @@
     .auction-entry-text {
       display: flex;
       justify-content: center;
-      font-size: 0.75rem;
+      font-size: 0.875rem;
       text-align: center;
       word-break: break-word;
 
@@ -322,7 +329,7 @@
       align-items: center;
       width: 100%;
 
-      &.small-warning{
+      &.small-warning {
         font-size: 0.75rem;
         color: #640000;
         text-align: center;
@@ -365,7 +372,7 @@
       padding: 0.15rem;
       border: var(--item-piles-auctioneer-border);
       border-radius: var(--item-piles-auctioneer-border-radius);
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       width: 100%;
       background-color: #cbc9bc;
 
@@ -423,7 +430,7 @@
       grid-template-columns: 1fr 1fr;
 
       .auction-title {
-        font-size: 0.8rem;
+        font-size: 0.875rem;
 
         i {
           margin-left: 0.25rem;
@@ -502,7 +509,6 @@
   }
 
 }
-
 
 
 .log-entry {

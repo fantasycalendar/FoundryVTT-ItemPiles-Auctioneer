@@ -176,7 +176,8 @@
 			<div class="auction-title auction-border-top auction-deposit" data-tooltip-direction="UP"
 			     data-tooltip="The amount you must pay in order to create this auction. If the auction succeeds, you get this back.">
 				<span>Auction deposit:</span>
-				<span class:cant-afford={depositCurrencies && !depositCurrencies.canBuy}>{depositCurrenciesString || "None"}</span>
+				<span
+					class:cant-afford={depositCurrencies && !depositCurrencies.canBuy}>{depositCurrenciesString || "None"}</span>
 			</div>
 		{/if}
 		{#if $flagStore.auctionBidVisibility === CONSTANTS.VISIBILITY_KEYS.USER}
@@ -264,8 +265,8 @@
 				</div>
 			{/if}
 		{/if}
-		<div class="auction-title auction-border-top auction-duration" data-tooltip-direction="UP"
-		     data-tooltip="How long this auction will remain active">
+		<div class="auction-title auction-border-top auction-duration" data-tooltip="How long this auction will remain active"
+		     data-tooltip-direction="UP">
 			<span>Duration:</span>
 			<select bind:value={$durationStore}>
 				{#each validTimeLimits as [key, value]}
@@ -277,7 +278,8 @@
 	</div>
 
 	<div class="auction-post-buttons">
-		<ReactiveButton callback={() => createAuctions()} disabled={!$newAuctionStore.itemData || (depositCurrencies && !depositCurrencies?.canBuy)}>
+		<ReactiveButton callback={() => createAuctions()}
+		                disabled={!$newAuctionStore.itemData || (depositCurrencies && !depositCurrencies?.canBuy)}>
 			Post Auctions
 		</ReactiveButton>
 		{#if game.user.isGM}

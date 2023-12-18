@@ -72,7 +72,7 @@
 
     .item-list {
       display: flex;
-	    flex-direction: column;
+      flex-direction: column;
       border: var(--item-piles-auctioneer-border);
       border-radius: var(--item-piles-auctioneer-border-radius);
       height: calc(var(--item-piles-auctioneer-ui-height) - 114px);
@@ -81,7 +81,7 @@
 
   }
 
-  :global.virtual-scroll-root{
+  :global.virtual-scroll-root {
     overflow-x: hidden;
   }
 

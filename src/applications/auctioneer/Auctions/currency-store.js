@@ -13,7 +13,7 @@ export default function CurrencyStore(store) {
 
 	const { set, update, subscribe } = currencyStore;
 
-	function reset(){
+	function reset() {
 		update(data => {
 			data.primaryCurrencies = data.primaryCurrencies.map(currency => {
 				currency.quantity = 0;

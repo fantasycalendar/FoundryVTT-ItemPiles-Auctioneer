@@ -8,10 +8,10 @@
 	let disabledCallback = false;
 
 	async function runCallback() {
-		if(disabledCallback) return;
+		if (disabledCallback) return;
 		disabledCallback = true;
 		await callback();
-		if(!completelyDisable) {
+		if (!completelyDisable) {
 			setTimeout(() => {
 				disabledCallback = false;
 			}, 100);

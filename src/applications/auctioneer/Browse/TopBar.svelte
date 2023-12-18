@@ -29,33 +29,35 @@
 		--border-hover="var(--item-piles-auctioneer-border)"
 		--border-radius="var(--item-piles-auctioneer-border-radius)"
 		--chevron-width="20px"
-		--multi-select-input-margin="none"
-		--internal-padding="0 0.15rem"
-		--value-container-padding="0"
-		--multi-select-padding="0 0.15rem"
-		--multi-item-margin="0"
-		--multi-item-padding="0 0.25rem"
-		--multi-item-gap="0"
 		--font-family="inherit"
 		--font-size="0.75rem"
 		--height="27px"
 		--input-color="black"
-		--max-height="27px"
-		--text-overflow="ellipsis"
-		--multi-item-bg="rgba(255, 255, 255, 0.25)"
-		--width="100%"
+		--internal-padding="0 0.15rem"
 		--margin="0 0.1rem 0 0.25rem"
-		multiFullItemClearable={true}
-		multiple={true}
-		clearable={false}
+		--max-height="27px"
+		--multi-item-bg="rgba(255, 255, 255, 0.25)"
+		--multi-item-gap="0"
+		--multi-item-margin="0"
+		--multi-item-padding="0 0.25rem"
+		--multi-select-input-margin="none"
+		--multi-select-padding="0 0.15rem"
+		--text-overflow="ellipsis"
+		--value-container-padding="0"
+		--width="100%"
 		bind:value={$selectedCategoriesStore}
+		clearable={false}
 		floatingConfig={{ strategy: "fixed", placement: "bottom" }}
 		items={$categoryStore}
-		showChevron={true}
+		multiFullItemClearable={true}
+		multiple={true}
 		placeholder="Select type filter..."
+		showChevron={true}
 	></Select>
 	<button on:click={() => { store.searchClicked() }} type="button">Search</button>
-	<button on:click={() => { $searchStore = ""; store.searchClicked(); $selectedCategoriesStore = []; }} type="button">Clear</button>
+	<button on:click={() => { $searchStore = ""; store.searchClicked(); $selectedCategoriesStore = []; }} type="button">
+		Clear
+	</button>
 	<select bind:value={$store.itemsPerPage}>
 		<option value={12}>Show 12 per page</option>
 		<option value={20}>Show 20 per page</option>
@@ -97,7 +99,7 @@
 
     input {
       margin: 0;
-	    max-width: 250px;
+      max-width: 250px;
       height: 27px;
       border: var(--item-piles-auctioneer-border);
       border-radius: var(--item-piles-auctioneer-border-radius);
@@ -149,7 +151,7 @@
   }
 
   :global.value-container {
-	  gap: 0 !important;
+    gap: 0 !important;
   }
 
 

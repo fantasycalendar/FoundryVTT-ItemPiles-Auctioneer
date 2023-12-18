@@ -45,13 +45,13 @@
 </script>
 
 <div
+	class={$$props.class}
 	on:dragenter={enter}
 	on:dragleave={leave}
 	on:dragover={overCallback}
 	on:dragstart|preventDefault
 	on:drop|preventDefault={dropData}
 	style={$$props.style}
-	class={$$props.class}
 >
 	<slot/>
 </div>

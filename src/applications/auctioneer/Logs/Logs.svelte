@@ -7,24 +7,24 @@
 	import BidLog from "~/applications/auctioneer/Logs/BidLog.svelte";
 	import BuyoutLog from "~/applications/auctioneer/Logs/BuyoutLog.svelte";
 	import ClaimedAuctionLog from "~/applications/auctioneer/Logs/ClaimedAuctionLog.svelte";
-  import CancelledAuctionLog from "~/applications/auctioneer/Logs/CancelledAuctionLog.svelte";
-  import { getLogs } from "~/lib.js";
-  import { writable } from "svelte/store";
+	import CancelledAuctionLog from "~/applications/auctioneer/Logs/CancelledAuctionLog.svelte";
+	import { getLogData } from "~/lib.js";
+	import { writable } from "svelte/store";
 
 	const store = getContext("store");
 
-  const componentTypes = {
-    AuctionLog,
-    ExpiredAuctionLog,
-    BidLog,
-    BuyoutLog,
-    ClaimedAuctionLog,
-    CancelledAuctionLog,
-  }
+	const componentTypes = {
+		AuctionLog,
+		ExpiredAuctionLog,
+		BidLog,
+		BuyoutLog,
+		ClaimedAuctionLog,
+		CancelledAuctionLog,
+	}
 
-  const auctioneerDoc = store.auctioneerDoc;
+	const auctioneerDoc = store.auctioneerDoc;
 	let allEntries = writable([]);
-	$: $allEntries = getLogs($auctioneerDoc, $store.auctionData).logs;
+	$: $allEntries = getLogData($auctioneerDoc, $store.auctionData).logs;
 
 	const searchDebounce = foundry.utils.debounce((searchText) => {
 		allEntries.update(entries => {

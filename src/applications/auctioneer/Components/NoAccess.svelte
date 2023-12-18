@@ -37,7 +37,7 @@
 
 <style lang="scss">
 
-	.access-denied{
+  .access-denied {
     display: flex;
     flex-direction: column;
     border: var(--item-piles-auctioneer-border);
@@ -45,27 +45,27 @@
     height: calc(var(--item-piles-auctioneer-ui-height) - 83px);
     overflow: hidden;
 
-		div {
-			display: flex;
+    div {
+      display: flex;
       flex-direction: column;
-			text-align: center;
-		}
+      text-align: center;
+    }
 
-		img {
+    img {
       max-width: 75px;
       border: 0;
       border-radius: 5px;
       z-index: 1;
-			margin-bottom: 0.25rem;
-			cursor: pointer;
-		}
+      margin-bottom: 0.25rem;
+      cursor: pointer;
+    }
 
-		.access-item-name {
-			font-size: 1.5rem;
+    .access-item-name {
+      font-size: 1.5rem;
       margin-bottom: 0.5rem;
-			font-style: italic;
-		}
+      font-style: italic;
+    }
 
-	}
+  }
 
 </style>

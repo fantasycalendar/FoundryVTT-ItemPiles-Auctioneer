@@ -41,7 +41,7 @@
 					{#each primaryCurrencies as currency}
 						<div class="price-currency-list-item">
 							<input type="number" bind:value={currency.quantity}/>
-							<img class="price-currency-list-img" src={currency.img}  data-tooltip={currency.name}/>
+							<img class="price-currency-list-img" src={currency.img} data-tooltip={currency.name}/>
 						</div>
 					{/each}
 				</div>
@@ -51,7 +51,7 @@
 					{#each secondaryCurrencies as currency}
 						<div class="price-currency-list-item">
 							<input type="number" bind:value={currency.quantity}/>
-							<img class="price-currency-list-img" src={currency.img}  data-tooltip={currency.name}/>
+							<img class="price-currency-list-img" src={currency.img} data-tooltip={currency.name}/>
 						</div>
 					{/each}
 				</div>

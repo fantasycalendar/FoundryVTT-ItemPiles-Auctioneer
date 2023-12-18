@@ -38,29 +38,30 @@
 			{CONSTANTS.BID_VISIBILITY_UI_LABELS[auction.bidVisibility]}
 		</div>
 		{#if showStartPrice || !showReserve}
-		<div class="item-prices">
-			<div class="item-price" data-tooltip="Current bid price">
-				{#each auction.bidPriceData.currencies as currency (currency.id)}
-					<div class="price">
-						<span>{currency.quantity}</span>
-						<img src={currency.img}>
-					</div>
-				{/each}
-			</div>
-			{#if auction.buyoutPriceData}
-				<div class="item-price buyout-price" data-tooltip="Buyout price">
-					{#each auction.buyoutPriceData.currencies as currency (currency.id)}
+			<div class="item-prices">
+				<div class="item-price" data-tooltip="Current bid price">
+					{#each auction.bidPriceData.currencies as currency (currency.id)}
 						<div class="price">
 							<span>{currency.quantity}</span>
 							<img src={currency.img}>
 						</div>
 					{/each}
 				</div>
-			{/if}
-		</div>
+				{#if auction.buyoutPriceData}
+					<div class="item-price buyout-price" data-tooltip="Buyout price">
+						{#each auction.buyoutPriceData.currencies as currency (currency.id)}
+							<div class="price">
+								<span>{currency.quantity}</span>
+								<img src={currency.img}>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{:else if showReserve && !showStartPrice}
 			{#if auction.reservePrice}
-				<div class="item-prices" data-tooltip="Reserve price - if the auction does not meet this price, it will not succeed">
+				<div class="item-prices"
+				     data-tooltip="Reserve price - if the auction does not meet this price, it will not succeed">
 					<div class="item-price">
 						{#each auction.reservePriceData.currencies as currency (currency.id)}
 							<div class="price">

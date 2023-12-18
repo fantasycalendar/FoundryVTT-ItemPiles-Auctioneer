@@ -16,10 +16,6 @@ export default class Auctioneer extends SvelteApplication {
 		this.actor = options.auctioneer;
 	}
 
-	onDropData(data){
-		return this.store.onDropData(data);
-	}
-
 	/** @inheritdoc */
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
@@ -52,7 +48,9 @@ export default class Auctioneer extends SvelteApplication {
 		})
 	}
 
-
+	onDropData(data) {
+		return this.store.onDropData(data);
+	}
 
 	/** @override */
 	_getHeaderButtons() {
@@ -60,6 +58,14 @@ export default class Auctioneer extends SvelteApplication {
 		const canConfigure = game.user.isGM;
 		if (canConfigure) {
 			buttons = [
+				{
+					label: !game.settings.get('item-piles', 'hideActorHeaderText') ? "ITEM-PILES.Inspect.OpenSheet" : "",
+					class: "item-piles-open-actor-sheet",
+					icon: "fas fa-user",
+					onclick: () => {
+						this.actor.sheet.render(true, { focus: true, bypassItemPiles: true });
+					}
+				},
 				{
 					label: !game.settings.get("item-piles", "hideActorHeaderText") ? "ITEM-PILES.HUD.Configure" : "",
 					class: "item-piles-configure-pile",

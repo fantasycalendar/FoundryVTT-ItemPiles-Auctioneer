@@ -2,7 +2,7 @@
 
 	import { ApplicationShell } from "#runtime/svelte/component/core";
 	import { getContext, onDestroy, setContext } from 'svelte';
-  import { createStore } from "./auctioneer-store.js";
+	import { createStore } from "./auctioneer-store.js";
 	import Tabs from "./Tabs.svelte";
 	import BottomBar from "~/applications/auctioneer/Components/BottomBar.svelte";
 	import NoAccess from "~/applications/auctioneer/Components/NoAccess.svelte";
@@ -14,13 +14,13 @@
 	const { auctioneer } = application.options;
 
 	export const store = createStore(auctioneer);
-  setContext("store", store);
+	setContext("store", store);
 
 	onDestroy(() => {
 		store.unsubscribe();
 	});
 
-  $: component = $store.access ? $store.tabs[$store.activeTab].component : NoAccess;
+	$: component = $store.access ? $store.tabs[$store.activeTab].component : NoAccess;
 
 </script>
 

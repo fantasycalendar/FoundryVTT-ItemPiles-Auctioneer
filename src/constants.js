@@ -38,10 +38,12 @@ const CONSTANTS = {
 	 * @property {AuctionTimeType} timeType
 	 * @property {string} minTimeLimit
 	 * @property {string} maxTimeLimit
+	 * @property {Item/boolean} entryItem
 	 * @property {boolean} displayEntryItem
+	 * @property {Actor/boolean} owner
 	 */
 	ACTOR_DEFAULTS: {
-		auctionFee: 5,
+		auctionFee: "@finalAuctionCost * 0.05",
 		auctionDeposit: "@itemCost * 0.05",
 		allowSecondaryCurrencies: true,
 		enableMinimumBid: false,
@@ -53,7 +55,9 @@ const CONSTANTS = {
 		timeType: "realTime",
 		minTimeLimit: "12hours",
 		maxTimeLimit: "2days",
-    displayEntryItem: false,
+		entryItem: false,
+		displayEntryItem: false,
+		owner: false,
 	},
 
 	AUCTION_TIME_LIMITS: {
@@ -75,8 +79,8 @@ const CONSTANTS = {
 	DEFAULTS: {
 		/**
 		 * @typedef {Object} Auction
-     * @property {String} id
-     * @property {String} userId
+		 * @property {String} id
+		 * @property {String} userId
 		 * @property {String} uuid
 		 * @property {String} actorUuid
 		 * @property {Object} item
@@ -92,7 +96,7 @@ const CONSTANTS = {
 		 */
 		AUCTION: {
 			id: "",
-      userId: "",
+			userId: "",
 			uuid: "AUCTIONID-AUCTIONEERUUID-USERUUID",
 			actorUuid: "",
 			itemData: {},
@@ -114,14 +118,14 @@ const CONSTANTS = {
 		/**
 		 * @typedef {Object} Bid
 		 * @property {String} id
-     * @property {String} userId
+		 * @property {String} userId
 		 * @property {String} auctionUuid
 		 * @property {Number} price
 		 * @property {Number} date
 		 */
 		BID: {
 			id: "",
-      userId: "",
+			userId: "",
 			auctionUuid: "",
 			actorUuid: "",
 			price: "",
@@ -139,7 +143,7 @@ const CONSTANTS = {
 		 */
 		BUYOUT: {
 			id: "",
-      userId: "",
+			userId: "",
 			auctionUuid: "",
 			actorUuid: "",
 			price: "",
@@ -195,12 +199,12 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 	auctionFee: {
 		title: "Auction Fee Formula",
 		label: "This is the percentage of the total sell price that the auctioneer takes as a cut from any successful auction.",
-		type: Number,
+		type: String,
 		value: CONSTANTS.ACTOR_DEFAULTS.auctionFee
 	},
-  auctionDeposit: {
+	auctionDeposit: {
 		title: "Deposit Fee Formula",
-		label: "This is the formula to calculate the price that someone must pay to put up an auction.",
+		label: "This is the formula to calculate the price that someone must pay to put up an auction. This is returned to the creator of the auction if the auction is successful, but kept by the auctioneer if failed",
 		type: String,
 		value: CONSTANTS.ACTOR_DEFAULTS.auctionDeposit
 	},
@@ -217,7 +221,7 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		type: Boolean,
 		value: CONSTANTS.ACTOR_DEFAULTS.allowSecondaryCurrencies
 	},
-  visibleTimeLeft: {
+	visibleTimeLeft: {
 		title: "Show full time left",
 		label: "When enabled, instead of 'very long' or 'short' strings for auction duration, this will show an exact amount of time left before auctions expire.",
 		type: Boolean,
@@ -263,24 +267,30 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		options: CONSTANTS.AUCTION_TIME_LIMITS,
 		value: CONSTANTS.ACTOR_DEFAULTS.maxTimeLimit
 	},
-  allowBankerVaults: {
-    title: "Allow banker vault impersonation",
-    label: "When enabled, this allows users to impersonate the vaults connected to bankers when interacting with the auctioneer. They can buy and sell items with it.",
-    type: Boolean,
-    value: CONSTANTS.ACTOR_DEFAULTS.allowBankerVaults
-  },
+	allowBankerVaults: {
+		title: "Allow banker vault impersonation",
+		label: "When enabled, this allows users to impersonate the vaults connected to bankers when interacting with the auctioneer. They can buy and sell items with it.",
+		type: Boolean,
+		value: CONSTANTS.ACTOR_DEFAULTS.allowBankerVaults
+	},
 	entryItem: {
 		title: "Entry Item",
 		label: "This configures an item that the character must possess in their inventory in order to access the auction house.",
 		type: Item,
 		value: false
 	},
-  displayEntryItem: {
-    title: "Display Entry Item",
-    label: "This determines whether the auctioneer accepts secondary currencies for its auctions",
-    type: Boolean,
-    value: CONSTANTS.ACTOR_DEFAULTS.displayEntryItem
-  },
+	displayEntryItem: {
+		title: "Display Entry Item",
+		label: "This determines whether the auctioneer accepts secondary currencies for its auctions",
+		type: Boolean,
+		value: CONSTANTS.ACTOR_DEFAULTS.displayEntryItem
+	},
+	owner: {
+		title: "Owner",
+		label: "This configures whether a character owns this auctioneer or not. All auction fees and deposit fees are sent to this character's inventory when a GM logs on.",
+		type: Actor,
+		value: false
+	},
 };
 
 export default CONSTANTS;

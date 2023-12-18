@@ -98,20 +98,20 @@
 		<div class="buttons">
 			{#if $store.activeTab === "auctions"}
 				<ReactiveButton
-				        callback={async () => await store.claimAuctions(auctions.filter(auction => auction.user === game.user && auction.expired))}
-				        disabled={!auctions.filter(auction => auction.user === game.user && auction.expired).length}>
+					callback={async () => await store.claimAuctions(auctions.filter(auction => auction.user === game.user && auction.expired))}
+					disabled={!auctions.filter(auction => auction.user === game.user && auction.expired).length}>
 					Collect all
 				</ReactiveButton>
 			{:else if $store.activeTab === "bids"}
 				<ReactiveButton
-				        callback={async () => await store.claimAuctions(auctions.filter(auction => !auction.won))}
-				        disabled={!auctions.filter(auction => !auction.won).length}>
+					callback={async () => await store.claimAuctions(auctions.filter(auction => !auction.won))}
+					disabled={!auctions.filter(auction => !auction.won).length}>
 					Collect all
 				</ReactiveButton>
 			{:else}
 				<ReactiveButton
-				        callback={async () => await store.claimAuctions(auctions.filter(auction => auction.won))}
-				        disabled={!auctions.filter(auction => auction.won).length}>
+					callback={async () => await store.claimAuctions(auctions.filter(auction => auction.won))}
+					disabled={!auctions.filter(auction => auction.won).length}>
 					Collect all
 				</ReactiveButton>
 			{/if}

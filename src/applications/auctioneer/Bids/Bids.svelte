@@ -59,7 +59,7 @@
     overflow: hidden;
   }
 
-  :global.virtual-scroll-root{
+  :global.virtual-scroll-root {
     overflow-x: hidden;
   }
 

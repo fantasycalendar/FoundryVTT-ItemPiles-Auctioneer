@@ -12,12 +12,12 @@
 
 	const validCurrencies = getValidCurrenciesForPrice(auction.startPriceData.currencies);
 
-	if(auction.minBidPrice){
+	if (auction.minBidPrice) {
 		validCurrencies.forEach(currency => {
 			const foundCurrency = auction.minBidPriceData.currencies.find(minBidCurrency => {
 				return minBidCurrency.name === currency.name && minBidCurrency.abbreviation === currency.abbreviation;
 			})
-			if(foundCurrency){
+			if (foundCurrency) {
 				currency.quantity = foundCurrency.quantity;
 			}
 		})

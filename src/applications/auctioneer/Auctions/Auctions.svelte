@@ -32,7 +32,7 @@
 
 	<div class="item-list">
 
-		<SortByTabs tab={$store.tabs.auctions} class="auctions" numVisibleElements={sortedAuctions.length}/>
+		<SortByTabs class="auctions" numVisibleElements={sortedAuctions.length} tab={$store.tabs.auctions}/>
 
 		<VirtualScroll
 			data={sortedAuctions}
@@ -49,11 +49,11 @@
 
 <style lang="scss">
 
-	.auctions {
-		display: grid;
-		grid-template-columns: 200px auto;
-		grid-column-gap: 0.25rem;
-	}
+  .auctions {
+    display: grid;
+    grid-template-columns: 200px auto;
+    grid-column-gap: 0.25rem;
+  }
 
   .item-list {
     display: flex;
@@ -61,11 +61,11 @@
     border: var(--item-piles-auctioneer-border);
     border-radius: var(--item-piles-auctioneer-border-radius);
     height: calc(var(--item-piles-auctioneer-ui-height) - 83px);
-	  max-height: calc(var(--item-piles-auctioneer-ui-height) - 83px);
+    max-height: calc(var(--item-piles-auctioneer-ui-height) - 83px);
     overflow: hidden;
   }
 
-  :global.virtual-scroll-root{
+  :global.virtual-scroll-root {
     overflow-x: hidden;
   }
 
