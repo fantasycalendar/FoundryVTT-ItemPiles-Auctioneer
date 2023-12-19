@@ -385,9 +385,9 @@ export function getLogData(auctioneer, { auctions = [], bids = [], buyouts = [] 
 
 		for (const claimedAuction of claimedAuctions) {
 			if (!claimedAuction.won) {
-				recipientCurrencies = recipientCurrencies
+				recipientCurrencies = recipientCurrencies && claimedAuction.depositPrice
 					? game.itempiles.API.calculateCurrencies(recipientCurrencies, claimedAuction.depositPrice, false)
-					: claimedAuction.depositPrice;
+					: claimedAuction.depositPrice || recipientCurrencies;
 			} else if (flags.auctionFee) {
 				const auctionFee = Math.max(0, flags.auctionFee ?? 0);
 				const fee = game.itempiles.API.calculateCurrencies(price, auctionFee / 100);
