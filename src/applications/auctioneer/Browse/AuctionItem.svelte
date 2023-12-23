@@ -31,7 +31,7 @@
 		</div>
 		<div class="auction-entry-text">
 		<span class:auction-owner={showOwnership && auction.user === game.user}>
-			{auction.user.name}
+			{auction.displayName}
 		</span>
 		</div>
 		<div class="auction-entry-text auction-status">

@@ -42,7 +42,9 @@
 	}) ?? validActors?.[0]);
 
 	$: $actorUuidStore = $selectedItem?.value;
-	$: auctions = $store.auctionData.auctions;
+	$: failedAuctions = $store.auctionData.auctions.filter(auction => auction.user === game.user && auction.expired);
+	$: wonAuctions = $store.auctionData.auctions.filter(auction => auction.won.user === game.user);
+	$: failedBids = $store.auctionData.auctions.filter(auction => auction.won && auction.won.user !== game.user);
 
 </script>
 
@@ -98,20 +100,20 @@
 		<div class="buttons">
 			{#if $store.activeTab === "auctions"}
 				<ReactiveButton
-					callback={async () => await store.claimAuctions(auctions.filter(auction => auction.user === game.user && auction.expired))}
-					disabled={!auctions.filter(auction => auction.user === game.user && auction.expired).length}>
+					callback={async () => await store.claimAuctions(failedAuctions)}
+					disabled={!failedAuctions.length}>
 					Collect all
 				</ReactiveButton>
 			{:else if $store.activeTab === "bids"}
 				<ReactiveButton
-					callback={async () => await store.claimAuctions(auctions.filter(auction => !auction.won))}
-					disabled={!auctions.filter(auction => !auction.won).length}>
+					callback={async () => await store.claimAuctions(failedBids)}
+					disabled={!failedBids.length}>
 					Collect all
 				</ReactiveButton>
 			{:else}
 				<ReactiveButton
-					callback={async () => await store.claimAuctions(auctions.filter(auction => auction.won))}
-					disabled={!auctions.filter(auction => auction.won).length}>
+					callback={async () => await store.claimAuctions(wonAuctions)}
+					disabled={!wonAuctions.length}>
 					Collect all
 				</ReactiveButton>
 			{/if}

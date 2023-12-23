@@ -19,7 +19,7 @@
 	>
 		<ItemName {auction}/>
 		<div class="auction-entry-text">
-			{auction.user.name}
+			{auction.displayName}
 		</div>
 		<div class="item-prices">
 			<div class="item-price">

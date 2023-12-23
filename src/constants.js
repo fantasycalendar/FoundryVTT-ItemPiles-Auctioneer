@@ -27,6 +27,7 @@ const CONSTANTS = {
 
 	/**
 	 * @typedef {Object} ActorFlagDefaults
+	 * @property {boolean} auctioneerClosed
 	 * @property {number} auctionFee
 	 * @property {string} auctionDeposit
 	 * @property {boolean} allowSecondaryCurrencies
@@ -40,9 +41,12 @@ const CONSTANTS = {
 	 * @property {string} maxTimeLimit
 	 * @property {Item/boolean} entryItem
 	 * @property {boolean} displayEntryItem
+	 * @property {boolean} showActorName
 	 * @property {Actor/boolean} owner
 	 */
 	ACTOR_DEFAULTS: {
+		auctioneerClosed: false,
+		showActorName: true,
 		auctionFee: "@finalAuctionCost * 0.05",
 		auctionDeposit: "@itemCost * 0.05",
 		allowSecondaryCurrencies: true,
@@ -196,6 +200,18 @@ CONSTANTS.RESERVE_VISIBILITY_LABELS = {
 }
 
 CONSTANTS.AUCTIONEER_SETTINGS = {
+	auctioneerClosed: {
+		title: "Closed",
+		label: "This setting determines whether the auctioneer is closed or open.",
+		type: Boolean,
+		value: CONSTANTS.ACTOR_DEFAULTS.auctioneerClosed
+	},
+	showActorName: {
+		title: "Display Character Name",
+		label: "This setting determines whether the names displayed on auctions and bids should be the character names rather than the user names.",
+		type: Boolean,
+		value: CONSTANTS.ACTOR_DEFAULTS.showActorName
+	},
 	auctionFee: {
 		title: "Auction Fee Formula",
 		label: "This is the percentage of the total sell price that the auctioneer takes as a cut from any successful auction.",
@@ -277,7 +293,7 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		title: "Entry Item",
 		label: "This configures an item that the character must possess in their inventory in order to access the auction house.",
 		type: Item,
-		value: false
+		value: CONSTANTS.ACTOR_DEFAULTS.entryItem
 	},
 	displayEntryItem: {
 		title: "Display Entry Item",
@@ -289,7 +305,7 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		title: "Owner",
 		label: "This configures whether a character owns this auctioneer or not. All auction fees and deposit fees are sent to this character's inventory when a GM logs on.",
 		type: Actor,
-		value: false
+		value: CONSTANTS.ACTOR_DEFAULTS.owner
 	},
 };
 

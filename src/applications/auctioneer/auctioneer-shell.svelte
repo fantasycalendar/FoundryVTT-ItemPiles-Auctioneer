@@ -20,7 +20,7 @@
 		store.unsubscribe();
 	});
 
-	$: component = $store.access ? $store.tabs[$store.activeTab].component : NoAccess;
+	$: component = $store.access && !$store.closed ? $store.tabs[$store.activeTab].component : NoAccess;
 
 </script>
 

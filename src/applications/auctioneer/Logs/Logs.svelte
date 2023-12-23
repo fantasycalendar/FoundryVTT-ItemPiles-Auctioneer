@@ -35,7 +35,7 @@
 				} else {
 					for (const part of searchText.split(" ")) {
 						entry.visible = entry.visible && (
-							entry.data.user.name.toLowerCase().includes(part.toLowerCase())
+							entry.data.displayName.toLowerCase().includes(part.toLowerCase())
 							||
 							(entry.data?.auction?.item ?? entry.data?.item).name.toLowerCase().includes(part.toLowerCase())
 						);

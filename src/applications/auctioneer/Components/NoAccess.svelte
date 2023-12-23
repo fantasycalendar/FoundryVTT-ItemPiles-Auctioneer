@@ -22,16 +22,21 @@
 </script>
 
 <div class="access-denied">
-	{#if flags.displayEntryItem}
-		<div on:click|stopPropagation={() => { previewItem() }}>
-			<img src={flags.entryItem.data.img}/>
-			<a class="access-item-name" style="color: {color || 'inherit'};">
-				{flags.entryItem.data.name}
-			</a>
-		</div>
-		<span>This character does not possess this item, which is required to gain access to this auctioneer.</span>
+	{#if $store.closed}
+		<div style="font-size:2rem; margin-bottom: 0.5rem;"><i class="fas fa-door-closed"></i></div>
+		<span>This auctioneer is closed.</span>
 	{:else}
-		<span>This character does not possess the item of entry to access this auctioneer.</span>
+		{#if !$store.access && flags.displayEntryItem}
+			<div on:click|stopPropagation={() => { previewItem() }}>
+				<img src={flags.entryItem.data.img}/>
+				<a class="access-item-name" style="color: {color || 'inherit'};">
+					{flags.entryItem.data.name}
+				</a>
+			</div>
+			<span>This character does not possess this item, which is required to gain access to this auctioneer.</span>
+		{:else}
+			<span>This character does not possess the item of entry to access this auctioneer.</span>
+		{/if}
 	{/if}
 </div>
 

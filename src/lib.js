@@ -345,6 +345,8 @@ function cleanUserFlags(acc, entry, flagPath) {
 
 export function getLogData(auctioneer, { auctions = [], bids = [], buyouts = [] } = {}) {
 
+	const flags = getAuctioneerActorFlags(auctioneer);
+
 	const claimedAuctions = auctions.filter(auction => auction.claimed).map(auction => auction._source);
 	const claimedBids = bids.filter(bid => bid.claimed).map(bid => bid._source);
 	const claimedBuyouts = buyouts.filter(buyout => buyout.claimed).map(buyout => buyout._source);
@@ -356,27 +358,26 @@ export function getLogData(auctioneer, { auctions = [], bids = [], buyouts = [] 
 	};
 	const auctioneerAuctionsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.AUCTIONS_FLAG) ?? [];
 	const auctioneerAuctions = auctioneerAuctionsData.map(source => {
-		const auction = makeAuction(auctioneer, source);
+		const auction = makeAuction(auctioneer, source, flags);
 		maps.auctions[auction.uuid] = auction;
 		return auction;
 	});
 
 	const auctioneerBidsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG) ?? [];
 	const auctioneerBids = auctioneerBidsData.map(source => {
-		const bid = makeBid(auctioneer, source, maps.auctions);
+		const bid = makeBid(auctioneer, source, maps.auctions, flags);
 		maps.bids[bid.id] = bid;
 		return bid;
 	});
 
 	const auctioneerBuyoutsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG) ?? [];
 	const auctioneerBuyouts = auctioneerBuyoutsData.map(source => {
-		const buyout = makeBuyout(auctioneer, source, maps.auctions);
+		const buyout = makeBuyout(auctioneer, source, maps.auctions, flags);
 		maps.buyouts[buyout.id] = buyout;
 		return buyout;
 	});
 
 	let recipientCurrencies = "";
-	const flags = getAuctioneerActorFlags(auctioneer);
 	const actorUpdates = {};
 	if (claimedAuctions.length) {
 
@@ -523,7 +524,7 @@ export function getLogData(auctioneer, { auctions = [], bids = [], buyouts = [] 
 }
 
 
-export function makeAuction(auctioneer, source) {
+export function makeAuction(auctioneer, source, flags) {
 	const auction = {};
 	auction._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.AUCTION), source);
 	auction.type = "auction";
@@ -549,6 +550,8 @@ export function makeAuction(auctioneer, source) {
 	auction.minBidPrice = auction._source.minBidPrice;
 	auction.depositPrice = auction._source.depositPrice;
 
+	auction.displayName = (flags.showActorName ? auction.actor?.name ?? "Unknown" : auction.user?.name ?? "Unknown");
+
 	auction.startPriceData = getPriceFromData(auction._source.startPrice);
 	auction.buyoutPriceData = getPriceFromData(auction._source.buyoutPrice);
 	auction.reservePriceData = getPriceFromData(auction._source.reservePrice);
@@ -562,7 +565,7 @@ export function makeAuction(auctioneer, source) {
 	return auction;
 }
 
-export function makeBuyout(auctioneer, source, auctions) {
+export function makeBuyout(auctioneer, source, auctions, flags) {
 	const buyout = {};
 	buyout._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.BUYOUT), source);
 	buyout.type = "buyout";
@@ -576,10 +579,11 @@ export function makeBuyout(auctioneer, source, auctions) {
 	buyout.auctionUuid = buyout._source.auctionUuid;
 	buyout.auction = auctions[buyout._source.auctionUuid];
 	buyout.auction.won = buyout;
+	buyout.displayName = (flags.showActorName ? buyout.actor?.name ?? "Unknown" : buyout.user?.name ?? "Unknown");
 	return buyout;
 }
 
-export function makeBid(auctioneer, source, auctions) {
+export function makeBid(auctioneer, source, auctions, flags) {
 	const bid = {};
 	bid._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.BID), source);
 	bid.type = "bid";
@@ -594,6 +598,7 @@ export function makeBid(auctioneer, source, auctions) {
 	bid.auctionUuid = bid._source.auctionUuid;
 	bid.auction = auctions[bid._source.auctionUuid];
 	bid.auction.bids.push(bid);
+	bid.displayName = (flags.showActorName ? bid.actor?.name ?? "Unknown" : bid.user?.name ?? "Unknown");
 	return bid;
 }
 

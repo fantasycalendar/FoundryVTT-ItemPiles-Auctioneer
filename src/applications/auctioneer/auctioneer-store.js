@@ -16,6 +16,7 @@ export function createStore(auctioneer) {
 		currentPage: 1,
 		totalPages: 1,
 		access: true,
+		closed: false,
 		tabs: {
 			"browse": {
 				label: "Browse",
@@ -428,13 +429,14 @@ export function createStore(auctioneer) {
 	}
 
 	function evaluateAccess() {
-		const doc = get(actorDoc);
-		if (!doc) return;
-		const flags = get(auctioneerFlags);
-		if (!flags.entryItem?.data) return;
-		const foundSimilarItem = game.itempiles.API.findSimilarItem(doc.items, flags.entryItem.data);
 		update(data => {
-			data.access = !!foundSimilarItem || game.user.isGM;
+			const flags = get(auctioneerFlags);
+			const doc = get(actorDoc);
+			if (flags.entryItem?.data && doc){
+				const foundSimilarItem = game.itempiles.API.findSimilarItem(doc.items, flags.entryItem.data);
+				data.access = !!foundSimilarItem || game.user.isGM;
+			}
+			data.closed = flags.auctioneerClosed && !game.user.isGM;
 			return data;
 		})
 	}
@@ -802,6 +804,8 @@ export function createStore(auctioneer) {
  */
 export function getAuctioneerActorData(auctioneer) {
 
+	const flags = lib.getAuctioneerActorFlags(auctioneer);
+
 	const auctions = {};
 	const bids = {};
 	const buyouts = {};
@@ -824,14 +828,14 @@ export function getAuctioneerActorData(auctioneer) {
 	auctionFlags.filter(source => {
 		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userId);
 	}).forEach(source => {
-		const auction = lib.makeAuction(auctioneer, source);
+		const auction = lib.makeAuction(auctioneer, source, flags);
 		auctions[auction.uuid] = auction;
 	});
 
 	buyoutFlags.filter(source => {
 		return source.auctionUuid.includes("-" + auctioneer.uuid + "-") && auctions[source.auctionUuid];
 	}).forEach(source => {
-		const buyout = lib.makeBuyout(auctioneer, source, auctions);
+		const buyout = lib.makeBuyout(auctioneer, source, auctions, flags);
 		buyouts[buyout.id] = buyout;
 	});
 
@@ -840,7 +844,7 @@ export function getAuctioneerActorData(auctioneer) {
 			&& auctions[source.auctionUuid]
 			&& !auctions[source.auctionUuid].won;
 	}).forEach(source => {
-		const bid = lib.makeBid(auctioneer, source, auctions);
+		const bid = lib.makeBid(auctioneer, source, auctions, flags);
 		bids[bid.id] = bid;
 	});
 
@@ -850,23 +854,22 @@ export function getAuctioneerActorData(auctioneer) {
 
 		const ownedBids = auction.bids.filter(bid => bid.user === game.user);
 
-		if (auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user) {
-			auction.bidPriceData = auction.bids.length ? auction.bids[0].priceData : auction.startPriceData;
-			auction.bidPrice = auction.bids.length ? auction.bids[0].price : false;
-		} else {
-			auction.bidPriceData = ownedBids.length ? ownedBids[0].priceData : auction.startPriceData;
-			auction.bidPrice = ownedBids.length ? ownedBids[0].price : false;
-		}
+		auction.bidPriceData = auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user
+			? (auction.bids.length ? auction.bids[0].priceData : auction.startPriceData)
+			: (ownedBids.length ? ownedBids[0].priceData : auction.startPriceData);
+
+		auction.bidPrice = auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user
+			? (auction.bids.length ? auction.bids[0].price : false)
+			: (ownedBids.length ? ownedBids[0].price : false);
 
 		auction.actualMininumBidPrice = auction.minBidPrice && auction.bidPrice
 			? game.itempiles.API.calculateCurrencies(auction.bidPrice, auction.minBidPrice, false)
 			: auction.minBidPrice || auction.bidPrice;
+
 		auction.actualMininumBidPriceData = lib.getPriceFromData(auction.actualMininumBidPrice);
 
-		if (auction.bids.length && auction.buyoutPrice) {
-			if (lib.isPriceHigherThan(auction.bids[0].priceData, auction.buyoutPriceData)) {
-				auction.buyoutPriceData = false;
-			}
+		if (auction.bids.length && auction.buyoutPrice && lib.isPriceHigherThan(auction.bids[0].priceData, auction.buyoutPriceData)) {
+			auction.buyoutPriceData = false;
 		}
 
 		if (auction.won) {
@@ -876,9 +879,9 @@ export function getAuctioneerActorData(auctioneer) {
 					value: Infinity
 				}
 			}
-			auction.highBidder = auction.won.user.name + " (buyout)";
+			auction.highBidder = (auction.won.displayName || "Unknown") + " (buyout)";
 		} else {
-			auction.highBidder = auction.bids?.[0]?.user?.name;
+			auction.highBidder = auction.bids?.[0]?.displayName;
 			if (auction.expired && auction.bids.length) {
 				if (!auction.reservePrice || !lib.isPriceHigherThan(auction.bids[0].priceData, auction.reservePriceData)) {
 					auction.won = auction.bids[0];

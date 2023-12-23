@@ -15,7 +15,7 @@
 
 <LogEntry date={entry.date}>
 	<div>
-		<span>{data.user.name}</span> <span class="auction-created-log">created</span> an auction
+		<span>{data.displayName}</span> <span class="auction-created-log">created</span> an auction
 		for {@html getItemColorElement(data.item)}<span
 	>{data.item.name}</span> {quantity} with a {data.startPrice ? "start price" : "buyout price"} of
 		<span>{price}</span>

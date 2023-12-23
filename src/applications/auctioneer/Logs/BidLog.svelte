@@ -15,9 +15,9 @@
 
 <LogEntry date={entry.date}>
 	<div>
-		<span>{data.user.name}</span> placed a <span class="auction-bid-log">bid</span> on
+		<span>{data.displayName}</span> placed a <span class="auction-bid-log">bid</span> on
 		the {@html getItemColorElement(data.auction.item)}<span
 	>{data.auction.item.name}</span> {quantity} from
-		<span>{data.auction.user.name}</span> for {price}
+		<span>{data.auction.displayName}</span> for {price}
 	</div>
 </LogEntry>

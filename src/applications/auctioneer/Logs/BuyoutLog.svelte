@@ -15,9 +15,9 @@
 
 <LogEntry date={entry.date}>
 	<div>
-		<span>{data.user.name}</span> fully <span class="auction-buyout-log">bought out</span>
+		<span>{data.displayName}</span> fully <span class="auction-buyout-log">bought out</span>
 		the {@html getItemColorElement(data.auction.item)}<span
 	>{data.auction.item.name}</span> {quantity} from
-		<span>{data.auction.user.name}</span> for {price}
+		<span>{data.auction.displayName}</span> for {price}
 	</div>
 </LogEntry>

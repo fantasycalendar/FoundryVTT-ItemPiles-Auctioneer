@@ -13,7 +13,7 @@
 
 <LogEntry date={entry.date}>
 	<div>
-		<span>{data.user.name}</span>'s <span
+		<span>{data.displayName}</span>'s <span
 		class="auction-expired-log">expired</span> auction for {@html getItemColorElement(data.item)}<span
 	>{data.item.name}</span>{quantity} closed without any successful bids or buyouts
 	</div>
