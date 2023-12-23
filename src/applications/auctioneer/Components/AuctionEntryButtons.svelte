@@ -9,6 +9,7 @@
 	export let showCurrency = true;
 
 	const store = getContext("store");
+	const actorUuidStore = store.actorUuid;
 
 	const validCurrencies = getValidCurrenciesForPrice(auction.startPriceData.currencies);
 
@@ -77,7 +78,7 @@
 			{:else}
 				{#if auction.startPrice}
 					<ReactiveButton
-						disabled={auction.user === game.user || auction.expired}
+						disabled={(auction.user === game.user && !game.user.isGM) || auction.actor.uuid === $actorUuidStore || auction.expired}
 						callback={() => {
 						store.bidOnItem(auction, currencyString).then((result) => {
 							if(!result) return;
@@ -89,7 +90,7 @@
 				{/if}
 				{#if auction?.buyoutPrice}
 					<ReactiveButton
-						disabled={auction.user === game.user || auction.expired || !auction.buyoutPrice}
+						disabled={(auction.user === game.user && !game.user.isGM) || auction.actor.uuid === $actorUuidStore || auction.expired || !auction.buyoutPrice}
 						callback={() => {
 						store.buyoutItem(auction).then((result) => {
 							if(!result) return;

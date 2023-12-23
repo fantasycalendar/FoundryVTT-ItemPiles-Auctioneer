@@ -529,6 +529,7 @@ export function makeAuction(auctioneer, source) {
 	auction.type = "auction";
 	auction.id = auction._source.id;
 	auction.uuid = auction._source.uuid;
+	auction.actorUuid = auction._source.actorUuid;
 	auction.cancelled = auction._source.cancelled;
 	auction.claimed = auction._source.claimed;
 	auction.gmClaimed = auction._source.gmClaimed;
