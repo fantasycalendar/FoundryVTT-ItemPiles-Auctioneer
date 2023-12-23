@@ -415,10 +415,8 @@ export function createStore(auctioneer) {
 	});
 
 	const auctioneerUnsubscribe = auctioneerDoc.subscribe(() => {
-		auctioneerFlags.update(() => {
-			updateActorCurrencies();
-			return lib.getAuctioneerActorFlags(auctioneer);
-		})
+		updateActorCurrencies();
+		auctioneerFlags.set(lib.getAuctioneerActorFlags(auctioneer));
 		evaluateAccess();
 	});
 
