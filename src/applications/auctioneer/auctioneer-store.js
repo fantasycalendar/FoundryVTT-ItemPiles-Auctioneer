@@ -855,7 +855,7 @@ export function getAuctioneerActorData(auctioneer) {
 			auction.bidPrice = auction.bids.length ? auction.bids[0].price : false;
 		} else {
 			auction.bidPriceData = ownedBids.length ? ownedBids[0].priceData : auction.startPriceData;
-			auction.bidPrice = auction.bids.length ? ownedBids[0].price : false;
+			auction.bidPrice = ownedBids.length ? ownedBids[0].price : false;
 		}
 
 		auction.actualMininumBidPrice = auction.minBidPrice && auction.bidPrice
