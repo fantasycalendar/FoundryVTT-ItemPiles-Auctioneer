@@ -572,6 +572,7 @@ export function makeBuyout(auctioneer, source, auctions, flags) {
 	buyout.id = buyout._source.id;
 	buyout.date = buyout._source.date;
 	buyout.user = game.users.get(buyout._source.userId);
+	buyout.actorUuid = buyout._source.actorUuid;
 	buyout.actor = buyout._source.actorUuid ? fromUuidSync(buyout._source.actorUuid) : false;
 	buyout.priceData = getPriceFromData(buyout._source.price);
 	buyout.price = buyout._source.price;
@@ -590,6 +591,7 @@ export function makeBid(auctioneer, source, auctions, flags) {
 	bid.id = bid._source.id;
 	bid.date = bid._source.date;
 	bid.user = game.users.get(bid._source.userId);
+	bid.actorUuid = bid._source.actorUuid;
 	bid.actor = bid._source.actorUuid ? fromUuidSync(bid._source.actorUuid) : false;
 	bid.priceData = getPriceFromData(bid._source.price);
 	bid.price = bid._source.price;

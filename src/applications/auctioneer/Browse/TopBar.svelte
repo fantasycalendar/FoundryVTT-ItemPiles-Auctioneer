@@ -65,20 +65,22 @@
 		<option value={0}>Show all</option>
 	</select>
 
-	<div class="pages">
-		<button class="page-button"
-		        disabled={$store.currentPage <= 1}
-		        on:click={() => { store.decrementPage() }}
-		        type="button">
-			<i class="fas fa-chevron-left"></i>
-		</button>
-		<span>Page {$store.currentPage} / {$store.totalPages}</span>
-		<button class="page-button" disabled={$store.currentPage === $store.totalPages}
-		        on:click={() => { store.incrementPage() }}
-		        type="button">
-			<i class="fas fa-chevron-right"></i>
-		</button>
-	</div>
+	{#if $store.itemsPerPage}
+		<div class="pages">
+			<button class="page-button"
+			        disabled={$store.currentPage <= 1}
+			        on:click={() => { store.decrementPage() }}
+			        type="button">
+				<i class="fas fa-chevron-left"></i>
+			</button>
+			<span>Page {$store.currentPage} / {$store.totalPages}</span>
+			<button class="page-button" disabled={$store.currentPage === $store.totalPages}
+			        on:click={() => { store.incrementPage() }}
+			        type="button">
+				<i class="fas fa-chevron-right"></i>
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style lang="scss">

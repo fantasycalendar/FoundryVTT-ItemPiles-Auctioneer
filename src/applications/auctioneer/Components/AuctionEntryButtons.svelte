@@ -78,7 +78,7 @@
 			{:else}
 				{#if auction.startPrice}
 					<ReactiveButton
-						disabled={(auction.user === game.user && !game.user.isGM) || auction.actor.uuid === $actorUuidStore || auction.expired}
+						disabled={(auction.user === game.user && !game.user.isGM) || auction.actorUuid === $actorUuidStore || auction.expired}
 						callback={() => {
 						store.bidOnItem(auction, currencyString).then((result) => {
 							if(!result) return;
@@ -90,7 +90,7 @@
 				{/if}
 				{#if auction?.buyoutPrice}
 					<ReactiveButton
-						disabled={(auction.user === game.user && !game.user.isGM) || auction.actor.uuid === $actorUuidStore || auction.expired || !auction.buyoutPrice}
+						disabled={(auction.user === game.user && !game.user.isGM) || auction.actorUuid === $actorUuidStore || auction.expired || !auction.buyoutPrice}
 						callback={() => {
 						store.buyoutItem(auction).then((result) => {
 							if(!result) return;

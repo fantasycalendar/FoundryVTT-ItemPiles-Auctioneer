@@ -166,16 +166,25 @@ export function createStore(auctioneer) {
 
 	const { set, update, subscribe } = store;
 
+	/**
+	 * Handles drag and drop data, specifically items being dropped into the auction
+	 * @param dropData
+	 * @returns {Promise<void>}
+	 */
 	async function onDropData(dropData) {
 
-		if (get(store).activeTab !== "auctions") return;
+		// Switch to the auctions tab, as that is the only place items can be added
+		update(data => {
+			data.activeTab = "auctions";
+			return data;
+		})
 
+		// Create item and check whether the item has a parent; only GMs can add items to the auctioneer without an owner
 		const item = await Item.implementation.fromDropData(dropData);
-
 		if (!item?.parent?.isOwner && !game.user.isGM) return;
 
+		// If the dropped item is exactly the same as a currency, bail out;
 		const currencies = getCurrencies(auctioneer);
-
 		if (currencies.some(currency => {
 			return currency.data.item
 				&& currency.data.item.name === item.name
@@ -185,12 +194,12 @@ export function createStore(auctioneer) {
 			return;
 		}
 
+		// If item piles has been configured to consider this item a non-physical item (ie, spells, classes), bail out
 		if (game.itempiles.API.isItemInvalid(item)) {
 			return;
 		}
 
-		const canItemStack = game.itempiles.API.canItemStack(item);
-		const itemQuantity = game.itempiles.API.getItemQuantity(item);
+		// Determine the deposit cost & item cost
 		const itemCost = game.itempiles.API.getCostOfItem(item);
 		let depositPrice = 0;
 		const flags = get(auctioneerFlags);
@@ -199,6 +208,9 @@ export function createStore(auctioneer) {
 			depositPrice = auctionDepositRoll ? auctionDepositRoll.total : flags?.auctionDeposit;
 		}
 
+		// Set up new auction store to reflect this newly dropped item
+		const canItemStack = game.itempiles.API.canItemStack(item);
+		const itemQuantity = game.itempiles.API.getItemQuantity(item);
 		auctionItemStore.set(item);
 		newAuctionStore.set({
 			uuid: dropData.uuid,
@@ -229,8 +241,8 @@ export function createStore(auctioneer) {
 	});
 
 	/*
-	Simple calendar tends to touch update world time, the date updated hook is only local, meaning other users do not get
-	the updated date
+	Simple calendar tends to touch update world time, the module's hook for date updated is only local to the gm, meaning
+	other users do not get the updated date - also handles regular time, but throttled to once per minute
   */
 	let lastUpdate = null;
 	const calendarHookId = Hooks.on("updateWorldTime", () => {
