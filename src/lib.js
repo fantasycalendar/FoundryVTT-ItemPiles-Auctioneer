@@ -176,9 +176,7 @@ export function getValidCurrenciesForPrice(currencies) {
  * @returns {ActorFlagDefaults}
  */
 export function getAuctioneerActorFlags(actor) {
-	const defaults = foundry.utils.deepClone(CONSTANTS.ACTOR_DEFAULTS);
-	const actorFlags = foundry.utils.deepClone(actor ? actor.getFlag(CONSTANTS.ITEM_PILES_MODULE, "data") : {});
-	return foundry.utils.mergeObject(defaults, actorFlags);
+	return game.itempiles.API.getActorFlagData(actor);
 }
 
 

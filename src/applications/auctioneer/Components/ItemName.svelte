@@ -1,11 +1,20 @@
 <script>
 
+
+	import {getContext} from "svelte";
+
 	export let auction;
+
+	const store = getContext("store");
+	const flagStore = store.auctioneerFlags;
+
+	$: canInspectItems = $flagStore.canInspectItem || game.user.isGM;
 
 	const item = auction.item;
 	const quantity = auction.quantity;
 
 	async function previewItem() {
+		if(!canInspectItems) return false;
 		const cls = auction.item._getSheetClass();
 		const sheet = new cls(auction.item, { editable: false })
 		return sheet._render(true);
@@ -24,7 +33,9 @@
 			<span class="item-quantity">{quantity}</span>
 		{/if}
 	</div>
-	<a on:click|stopPropagation={() => { previewItem() }} style="color: {color || 'inherit'};">
+	<span class:item-piles-clickable={canInspectItems} class:item-piles-clickable-link={canInspectItems}
+	      on:click|stopPropagation={() => { previewItem() }}
+	      style="color: {color || 'inherit'};">
 		{item.name}
-	</a>
+	</span>
 </div>
