@@ -1,7 +1,6 @@
 import CONSTANTS from "~/constants.js";
 import Auctioneer from "~/applications/auctioneer/auctioneer.js";
 import moment from "moment";
-import { getAuctioneerActorData } from "~/applications/auctioneer/auctioneer-store.js";
 
 export function auctioneerRendered(itemPile) {
 
@@ -104,7 +103,7 @@ export function dateNumberToRelativeString(auctioneer, date) {
 /**
  * @param {string} priceFlag
  * @param {boolean|Actor} actor
- * @returns {{valid: boolean, totalPrice: number, canBuy: boolean, currencies: *[]}|(*&{valid: boolean, totalPrice: *, currencies: *})}
+ * @returns {{basePriceString: string, valid: boolean, totalPrice: number, canBuy: boolean, currencies: *[]}|(*&{valid: boolean, totalPrice: *, currencies: *})}
  */
 export function getPriceFromData(priceFlag, actor = false) {
 
@@ -527,6 +526,143 @@ export function getLogData(auctioneer, { auctions = [], bids = [], buyouts = [] 
 }
 
 
+
+/**
+ * @typedef {Object} AuctionData
+ * @property {Array<Auction>} auctions
+ * @property {Array<Bid>} bids
+ * @property {Array<Buyout>} buyouts
+ *
+ * @param {Actor} auctioneer
+ * @return {AuctionData}
+ */
+export function getAuctioneerData(auctioneer) {
+
+	const flags = getAuctioneerActorFlags(auctioneer);
+
+	const auctions = {};
+	const bids = {};
+	const buyouts = {};
+
+	const { auctionFlags, bidFlags, buyoutFlags } = game.users.reduce((acc, user) => {
+		const userAuctions = getUserAuctions(user);
+		const userBids = getUserBids(user);
+		const userBuyouts = getUserBuyouts(user);
+		return {
+			auctionFlags: acc.auctionFlags.concat(userAuctions),
+			bidFlags: acc.bidFlags.concat(userBids),
+			buyoutFlags: acc.buyoutFlags.concat(userBuyouts),
+		}
+	}, { auctionFlags: [], bidFlags: [], buyoutFlags: [] });
+
+	auctionFlags.sort((a, b) => b.date - a.date);
+	bidFlags.sort((a, b) => b.date - a.date);
+	buyoutFlags.sort((a, b) => b.date - a.date);
+
+	auctionFlags.filter(source => {
+		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userId);
+	}).forEach(source => {
+		const auction = makeAuction(auctioneer, source, flags);
+		auctions[auction.uuid] = auction;
+	});
+
+	buyoutFlags.filter(source => {
+		return source.auctionUuid.includes("-" + auctioneer.uuid + "-") && auctions[source.auctionUuid];
+	}).forEach(source => {
+		const buyout = makeBuyout(auctioneer, source, auctions, flags);
+		buyouts[buyout.id] = buyout;
+	});
+
+	bidFlags.filter(source => {
+		return source.auctionUuid.includes("-" + auctioneer.uuid + "-")
+			&& auctions[source.auctionUuid]
+			&& !auctions[source.auctionUuid].won;
+	}).forEach(source => {
+		const bid = makeBid(auctioneer, source, auctions, flags);
+		bids[bid.id] = bid;
+	});
+
+	for (const auction of Object.values(auctions)) {
+
+		auction.bids.sort((a, b) => b.priceData.totalPrice - a.priceData.totalPrice);
+
+		const ownedBids = auction.bids.filter(bid => bid.user === game.user);
+
+		auction.bidPriceData = auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user
+			? (auction.bids.length ? auction.bids[0].priceData : auction.startPriceData)
+			: (ownedBids.length ? ownedBids[0].priceData : auction.startPriceData);
+
+		auction.bidPrice = auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user
+			? (auction.bids.length ? auction.bids[0].price : false)
+			: (ownedBids.length ? ownedBids[0].price : false);
+
+		auction.actualMininumBidPrice = auction.minBidPrice && auction.bidPrice
+			? game.itempiles.API.calculateCurrencies(auction.bidPrice, auction.minBidPrice, false)
+			: auction.minBidPrice || auction.bidPrice;
+
+		auction.actualMininumBidPriceData = getPriceFromData(auction.actualMininumBidPrice);
+
+		if (auction.bids.length && auction.buyoutPrice && isPriceHigherThan(auction.bids[0].priceData, auction.buyoutPriceData)) {
+			auction.buyoutPriceData = false;
+		}
+
+		if (auction.won) {
+			if (auction.user === game.user) {
+				auction.timeLeft = {
+					label: "Auction Succeeded",
+					value: Infinity
+				}
+			}
+			auction.highBidder = (auction.won.displayName || "Unknown") + " (buyout)";
+		} else {
+			auction.highBidder = auction.bids?.[0]?.displayName;
+			if (auction.expired && auction.bids.length) {
+				if (!auction.reservePrice || !isPriceHigherThan(auction.bids[0].priceData, auction.reservePriceData)) {
+					auction.won = auction.bids[0];
+					if (auction.user === game.user) {
+						auction.timeLeft = {
+							label: "Auction Succeeded",
+							value: Infinity
+						}
+					}
+				}
+			}
+		}
+
+		if (ownedBids.length && !auction.claimed) {
+			const highestOwnedBid = ownedBids[0];
+			auction.highestOwnedBid = highestOwnedBid;
+			const bidIndex = auction.bids.indexOf(highestOwnedBid);
+			if (auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE) {
+				let label = "Low Bid";
+				if (bidIndex === 0) {
+					label = "Highest Bid"
+				} else if (bidIndex === 1 || bidIndex === 2) {
+					label = "High Bid"
+				}
+				highestOwnedBid.bidStatus = {
+					value: Math.min(bidIndex, 3),
+					label
+				}
+			} else {
+				highestOwnedBid.bidStatus = {
+					value: 0,
+					label: CONSTANTS.BID_VISIBILITY_UI_LABELS[auction.bidVisibility]
+				}
+			}
+		}
+	}
+
+	return {
+		auctionsMap: auctions,
+		auctions: Object.values(auctions),
+		bids: Object.values(bids),
+		buyouts: Object.values(buyouts)
+	}
+
+}
+
+
 export function makeAuction(auctioneer, source, flags) {
 	const auction = {};
 	auction._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.AUCTION), source);
@@ -538,8 +674,8 @@ export function makeAuction(auctioneer, source, flags) {
 	auction.claimed = auction._source.claimed;
 	auction.gmClaimed = auction._source.gmClaimed;
 	auction.item = new Item.implementation(auction._source.itemData)
-	auction.user = game.users.get(auction._source.userId);
-	auction.actor = auction._source.actorUuid ? fromUuidSync(auction._source.actorUuid) : false;
+	auction.user = game.users.get(auction._source.userId) ?? false;
+	auction.actor = auction._source.actorUuid ? fromUuidSync(auction._source.actorUuid) ?? false : false;
 	auction.date = auction._source.date;
 	auction.claimedDate = auction._source.claimedDate;
 	auction.expiryDate = auction._source.expiryDate;
@@ -574,9 +710,9 @@ export function makeBuyout(auctioneer, source, auctions, flags) {
 	buyout.type = "buyout";
 	buyout.id = buyout._source.id;
 	buyout.date = buyout._source.date;
-	buyout.user = game.users.get(buyout._source.userId);
+	buyout.user = game.users.get(buyout._source.userId) ?? false;
 	buyout.actorUuid = buyout._source.actorUuid;
-	buyout.actor = buyout._source.actorUuid ? fromUuidSync(buyout._source.actorUuid) : false;
+	buyout.actor = buyout._source.actorUuid ? fromUuidSync(buyout._source.actorUuid) ?? false : false;
 	buyout.priceData = getPriceFromData(buyout._source.price);
 	buyout.price = buyout._source.price;
 	buyout.claimed = buyout._source.claimed;
@@ -593,9 +729,9 @@ export function makeBid(auctioneer, source, auctions, flags) {
 	bid.type = "bid";
 	bid.id = bid._source.id;
 	bid.date = bid._source.date;
-	bid.user = game.users.get(bid._source.userId);
+	bid.user = game.users.get(bid._source.userId) ?? false;
 	bid.actorUuid = bid._source.actorUuid;
-	bid.actor = bid._source.actorUuid ? fromUuidSync(bid._source.actorUuid) : false;
+	bid.actor = bid._source.actorUuid ? fromUuidSync(bid._source.actorUuid) ?? false : false;
 	bid.priceData = getPriceFromData(bid._source.price);
 	bid.price = bid._source.price;
 	bid.claimed = bid._source.claimed;
@@ -618,7 +754,7 @@ export async function migrateData(auctioneer = false) {
 
 	const auctioneers = auctioneersActors
 		.map(auctioneer => {
-			const auctioneerData = getAuctioneerActorData(auctioneer);
+			const auctioneerData = getAuctioneerData(auctioneer);
 			const flags = getAuctioneerActorFlags(auctioneer);
 			const { userUpdates, actorUpdates, recipientCurrencies } = getLogData(auctioneer, auctioneerData);
 			const recipient = flags.owner?.uuid ? fromUuidSync(flags.owner?.uuid) ?? auctioneer : auctioneer;
