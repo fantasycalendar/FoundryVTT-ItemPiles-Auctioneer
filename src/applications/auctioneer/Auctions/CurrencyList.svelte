@@ -29,12 +29,12 @@
 <div data-tooltip={tooltip} data-tooltip-direction="UP">
 	<span class="auction-title" class:currency-expand={clickable} on:click={() => { showPrice = name; }}>
 		{label}
-		{#if caret}
+		{#if caret && showPrice !== "all"}
 			<i class="fas" class:fa-caret-down={showPrice === name}
 			   class:fa-caret-right={showPrice !== name}></i>
 		{/if}
 	</span>
-	{#if showPrice === name}
+	{#if showPrice === name || showPrice === "all"}
 		<div class="price-currencies-container" transition:slide>
 			{#if !$useSecondaryCurrencies}
 				<div class="price-currencies">

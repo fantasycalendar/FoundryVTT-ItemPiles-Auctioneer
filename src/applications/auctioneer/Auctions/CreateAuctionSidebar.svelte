@@ -12,13 +12,18 @@
 	const store = getContext("store");
 
 	const flagStore = store.auctioneerFlags;
+
 	const flags = get(flagStore);
 
 	const itemDocStore = store.auctionItemStore;
 	const actorDoc = store.actorDoc;
 	const newAuctionStore = store.newAuctionStore;
-
 	let showPrice = "bids";
+	$: {
+		if($flagStore.showOnlyPrimaryCurrency){
+			showPrice = "all";
+		}
+	}
 	const useSecondaryCurrencies = writable(false);
 	const currencies = getCurrencies(store.auctioneer);
 	const hasSecondaryCurrencies = currencies.some(currency => currency.secondary);
@@ -166,15 +171,18 @@
 				<div class="auction-title small-warning">Item cannot be stacked, only 1 auction can be created at a time.</div>
 			</div>
 		{/if}
-		{#if $flagStore.allowSecondaryCurrencies && hasSecondaryCurrencies}
-			<div class="auction-title auction-border-top" data-tooltip-direction="UP"
-			     data-tooltip="When enabled, this switches the currencies for this auction to use the alternative currencies">
-				<input bind:checked={$useSecondaryCurrencies} type="checkbox"/> Use Other Currencies
-			</div>
-		{/if}
+		<div class="auction-title auction-border-top auction-duration" data-tooltip="How long this auction will remain active"
+		     data-tooltip-direction="UP">
+			<span>Duration:</span>
+			<select bind:value={$durationStore}>
+				{#each validTimeLimits as [key, value]}
+					<option value={key}>{value}</option>
+				{/each}
+			</select>
+		</div>
 		{#if $flagStore.auctionDeposit}
 			<div class="auction-title auction-border-top auction-deposit" data-tooltip-direction="UP"
-			     data-tooltip="The amount you must pay in order to create this auction. If the auction succeeds, you get this back.">
+			     data-tooltip="The amount you must pay in order to create this auction. If the auction succeeds, you get this back. If you cancel the auction, or it fails to sell, you do not get this back.">
 				<span>Auction deposit:</span>
 				<span
 					class:cant-afford={depositCurrencies && !depositCurrencies.canBuy}>{depositCurrenciesString || "None"}</span>
@@ -210,11 +218,17 @@
 				<span>Hidden Bids</span>
 			</div>
 		{/if}
+		{#if $flagStore.allowSecondaryCurrencies && hasSecondaryCurrencies}
+			<div class="auction-title auction-border-top" data-tooltip-direction="UP"
+			     data-tooltip="When enabled, this switches the currencies for this auction to use the alternative currencies">
+				<input bind:checked={$useSecondaryCurrencies} type="checkbox"/> Use Other Currencies
+			</div>
+		{/if}
 		<div class="price-currencies-container-pair auction-border-top">
-			<CurrencyList bind:showPrice clickable={$flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
+			<CurrencyList bind:showPrice clickable={($flagStore.enableMinimumBid || $flagStore.enableReserveLimit) && showPrice !== "all"}
 			              currencyStore={bidCurrencies} label="Starting Bid" name="bids"
 			              tooltip="Starting price for bids" {useSecondaryCurrencies}/>
-			<CurrencyList bind:showPrice caret={$flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
+			<CurrencyList bind:showPrice caret={($flagStore.enableMinimumBid || $flagStore.enableReserveLimit) && showPrice !== "all"}
 			              clickable={$flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
 			              currencyStore={buyoutCurrencies} label="Buyout Price"
 			              name="bids"
@@ -223,12 +237,14 @@
 		{#if $flagStore.enableMinimumBid || $flagStore.enableReserveLimit}
 			<div class="price-currencies-container-pair auction-border-top">
 				{#if $flagStore.enableMinimumBid}
-					<CurrencyList bind:showPrice currencyStore={minBidCurrencies} label="Minimum Bid" name="minmax"
-					              tooltip="This is the minimum amount someone must pay to be able to bid on this auction"
+					<CurrencyList bind:showPrice clickable={showPrice !== "all"}
+					              currencyStore={minBidCurrencies} label="Minimum Bid" name="minmax"
+					              tooltip="This is the minimum amount someone must add to the current bid in order for their bid to go through"
 					              {useSecondaryCurrencies} caret={!$flagStore.enableReserveLimit}/>
 				{/if}
 				{#if $flagStore.enableReserveLimit}
-					<CurrencyList bind:showPrice currencyStore={reserveCurrencies} label="Reserve" name="minmax"
+					<CurrencyList bind:showPrice clickable={showPrice !== "all"}
+					              currencyStore={reserveCurrencies} label="Reserve" name="minmax"
 					              tooltip="This is the amount that the bids of this auction must reach in order for the auction to succeed"
 					              {useSecondaryCurrencies} caret={!$flagStore.enableMinimumBid}/>
 				{/if}
@@ -265,15 +281,6 @@
 				</div>
 			{/if}
 		{/if}
-		<div class="auction-title auction-border-top auction-duration" data-tooltip="How long this auction will remain active"
-		     data-tooltip-direction="UP">
-			<span>Duration:</span>
-			<select bind:value={$durationStore}>
-				{#each validTimeLimits as [key, value]}
-					<option value={key}>{value}</option>
-				{/each}
-			</select>
-		</div>
 
 	</div>
 

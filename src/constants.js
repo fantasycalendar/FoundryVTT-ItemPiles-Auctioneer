@@ -48,7 +48,7 @@ const CONSTANTS = {
 	ACTOR_DEFAULTS: {
 		auctioneerClosed: false,
 		showActorName: true,
-		auctionFee: "@finalAuctionCost * 0.05",
+		auctionFee: 5,
 		auctionDeposit: "@itemCost * 0.05",
 		showOnlyPrimaryCurrency: false,
 		allowSecondaryCurrencies: true,
