@@ -9,7 +9,10 @@
 	export let showCurrency = true;
 
 	const store = getContext("store");
+	const flagStore = store.auctioneerFlags;
 	const actorUuidStore = store.actorUuid;
+
+	$: flags = $flagStore;
 
 	const validCurrencies = getValidCurrenciesForPrice(auction.startPriceData.currencies);
 
@@ -26,7 +29,9 @@
 
 	const currencyStore = writable(validCurrencies);
 
-	$: currencyString = turnCurrenciesIntoString($currencyStore);
+	$: currencies = $currencyStore.filter(currency => currency.secondary || !flags.showOnlyPrimaryCurrency || currency.primary);
+
+	$: currencyString = turnCurrenciesIntoString(currencies);
 
 	function clearCurrencyStore() {
 		currencyStore.update(currencies => {
@@ -42,7 +47,7 @@
 <div class="item-list-entry-actions">
 	{#if showCurrency && !auction.expired}
 		<div class="character-currencies">
-			{#each $currencyStore as currency (currency.name)}
+			{#each currencies as currency (currency.name)}
 				<div class="currency-list-item" data-tooltip={currency.name}>
 					<input type="number" bind:value={currency.quantity}/>
 					<img class="currency-list-img" src="{currency.img}"/>

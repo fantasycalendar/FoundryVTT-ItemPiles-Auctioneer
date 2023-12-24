@@ -20,6 +20,12 @@
 		store.unsubscribe();
 	});
 
+	function dropData(event){
+		const data = JSON.parse(event.dataTransfer.getData("text"));
+		if(data?.type !== "Item") return;
+		return store.onDropData(data);
+	}
+
 	$: component = $store.access && !$store.closed ? $store.tabs[$store.activeTab].component : NoAccess;
 
 </script>
@@ -28,7 +34,7 @@
 
 <ApplicationShell bind:elementRoot>
 
-	<div class="main">
+	<div class="main" on:drop={dropData}>
 
 		<svelte:component this={component}/>
 

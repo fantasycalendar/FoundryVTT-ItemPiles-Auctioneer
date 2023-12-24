@@ -30,6 +30,7 @@ const CONSTANTS = {
 	 * @property {boolean} auctioneerClosed
 	 * @property {number} auctionFee
 	 * @property {string} auctionDeposit
+	 * @property {boolean} showOnlyPrimaryCurrency
 	 * @property {boolean} allowSecondaryCurrencies
 	 * @property {boolean} enableMinimumBid
 	 * @property {boolean} enableReserveLimit
@@ -49,6 +50,7 @@ const CONSTANTS = {
 		showActorName: true,
 		auctionFee: "@finalAuctionCost * 0.05",
 		auctionDeposit: "@itemCost * 0.05",
+		showOnlyPrimaryCurrency: false,
 		allowSecondaryCurrencies: true,
 		enableMinimumBid: false,
 		enableReserveLimit: false,
@@ -231,9 +233,15 @@ CONSTANTS.AUCTIONEER_SETTINGS = {
 		options: CONSTANTS.BID_VISIBILITY_LABELS,
 		value: CONSTANTS.ACTOR_DEFAULTS.auctionBidVisibility
 	},
+	showOnlyPrimaryCurrency: {
+		title: "Show Only Primary Currency",
+		label: "This determines whether the auctioneer only shows the primary currency (eg, gold in D&D5e), and not the other denominations.",
+		type: Boolean,
+		value: CONSTANTS.ACTOR_DEFAULTS.showOnlyPrimaryCurrency
+	},
 	allowSecondaryCurrencies: {
 		title: "Allow Secondary Currencies",
-		label: "This determines whether the auctioneer accepts secondary currencies for its auctions",
+		label: "This determines whether the auctioneer accepts secondary currencies for its auctions.",
 		type: Boolean,
 		value: CONSTANTS.ACTOR_DEFAULTS.allowSecondaryCurrencies
 	},

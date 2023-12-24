@@ -176,7 +176,10 @@ export function getValidCurrenciesForPrice(currencies) {
  * @returns {ActorFlagDefaults}
  */
 export function getAuctioneerActorFlags(actor) {
-	return game.itempiles.API.getActorFlagData(actor);
+	return foundry.utils.mergeObject(
+		foundry.utils.deepClone(CONSTANTS.ACTOR_DEFAULTS),
+		game.itempiles.API.getActorFlagData(actor)
+	);
 }
 
 
@@ -188,6 +191,8 @@ export function getCurrencies(actor) {
 		currency.quantity = 0;
 		currency.secondary = false;
 		return currency;
+	}).filter(currency => {
+		return !flags.showOnlyPrimaryCurrency || currency.primary;
 	});
 
 	const secondaryCurrencies = flags.allowSecondaryCurrencies

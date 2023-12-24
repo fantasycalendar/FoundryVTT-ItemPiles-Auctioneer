@@ -26,9 +26,9 @@ export function createStore(auctioneer) {
 				sortByInverse: false,
 				switch: "price",
 				sortByColumns: {
-					"name": { label: "Name", sort: (a, b) => a.item.name > b.item.name ? 1 : -1 },
+					"name": { label: "Name", sort: (a, b) => a.item?.name > b.item?.name ? 1 : -1 },
 					"time": { label: "Time", sort: (a, b) => b.timeLeft.value - a.timeLeft.value },
-					"seller": { label: "Seller", sort: (a, b) => a.actor.name > b.actor.name ? 1 : -1 },
+					"seller": { label: "Seller", sort: (a, b) => a.actor?.name > b.actor?.name ? 1 : -1 },
 					"bid-type": { label: "Type", sort: (a, b) => a.bidVisibility > b.bidVisibility ? 1 : -1 },
 					"price": {
 						label: "Price / Buyout",
@@ -173,15 +173,15 @@ export function createStore(auctioneer) {
 	 */
 	async function onDropData(dropData) {
 
+		// Create item and check whether the item has a parent; only GMs can add items to the auctioneer without an owner
+		const item = await Item.implementation.fromDropData(dropData);
+		if (!item?.parent?.isOwner && !game.user.isGM) return;
+
 		// Switch to the auctions tab, as that is the only place items can be added
 		update(data => {
 			data.activeTab = "auctions";
 			return data;
 		})
-
-		// Create item and check whether the item has a parent; only GMs can add items to the auctioneer without an owner
-		const item = await Item.implementation.fromDropData(dropData);
-		if (!item?.parent?.isOwner && !game.user.isGM) return;
 
 		// If the dropped item is exactly the same as a currency, bail out;
 		const currencies = getCurrencies(auctioneer);
@@ -394,23 +394,25 @@ export function createStore(auctioneer) {
 	/**
 	 * {ActorFlagDefaults}
 	 */
-	const auctioneerFlags = writable(CONSTANTS.ACTOR_DEFAULTS);
+	const auctioneerFlags = writable(lib.getAuctioneerActorFlags(auctioneer));
 
 	const selectedActorUuids = game.user.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.USER_AUCTIONEER_FLAGS) ?? {};
 
 	const selectedCharacterUuid = selectedActorUuids?.[auctioneer.id] ?? game.user.character?.uuid;
 	const actorUuid = writable("");
 	const actorDoc = new TJSDocument();
-	const actorCurrencies = writable(lib.getCurrencies(auctioneer));
+	const actorCurrencies = writable([]);
 
 	const actorUuidUnsubscribe = actorUuid.subscribe((uuid) => {
 		if (!uuid) return;
 		const actor = fromUuidSync(uuid);
 		if (!actor) return;
+		const flags = get(auctioneerFlags);
 		actorDoc.set(actor);
 		game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.USER_AUCTIONEER_FLAGS, {
 			[auctioneer.id]: uuid
 		});
+		updateActorCurrencies();
 		evaluateAccess();
 	});
 
@@ -426,16 +428,10 @@ export function createStore(auctioneer) {
 		const doc = get(actorDoc);
 		if (!doc) return;
 		const flags = lib.getAuctioneerActorFlags(auctioneer);
-		const actorNewCurrencies = game.itempiles.API.getActorCurrencies(doc, {
+		actorCurrencies.set(game.itempiles.API.getActorCurrencies(doc, {
 			getAll: true,
 			secondary: flags.allowSecondaryCurrencies
-		});
-		actorCurrencies.update(data => {
-			return data.map((currency, index) => {
-				currency.quantity = actorNewCurrencies?.[index]?.quantity ?? 0;
-				return currency;
-			});
-		});
+		}));
 	}
 
 	function evaluateAccess() {
