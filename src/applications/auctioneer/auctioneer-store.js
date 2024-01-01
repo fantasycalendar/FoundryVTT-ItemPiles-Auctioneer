@@ -654,15 +654,6 @@ export function createStore(auctioneer) {
 		}
 
 		if (actor && itemsToCreate.length) {
-			if (actor.getFlag("item-piles", "data")?.type === "vault") {
-				const canEveryItemFit = itemsToCreate.every(data => {
-					return game.itempiles.API.canItemFitInVault(data.item, actor, data.quantity);
-				});
-				if (!canEveryItemFit) {
-					ui.notifications.warn("You cannot claim this item as there is no more space in your vault!");
-					return;
-				}
-			}
 			await game.itempiles.API.addItems(actor, itemsToCreate);
 		}
 		if (actor && (successfulAuctionCurrencies.length || failedBidCurrencies.length)) {
