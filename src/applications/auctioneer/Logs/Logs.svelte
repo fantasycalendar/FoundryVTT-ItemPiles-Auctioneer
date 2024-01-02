@@ -24,7 +24,9 @@
 
 	const auctioneerDoc = store.auctioneerDoc;
 	let allEntries = writable([]);
-	$: $allEntries = getLogData($auctioneerDoc, $store.auctionData).logs;
+	$: {
+		$allEntries = getLogData($auctioneerDoc).logs
+	}
 
 	const searchDebounce = foundry.utils.debounce((searchText) => {
 		allEntries.update(entries => {

@@ -316,34 +316,20 @@ export function createStore(auctioneer) {
 
 	async function bidOnItem(auction, bidCurrencies) {
 
-		if (!bidCurrencies) {
-			return false;
-		}
+		if (!bidCurrencies) return false;
 
 		const targetActor = get(actorDoc);
 
 		const bidPaymentData = lib.getPriceFromData(bidCurrencies, targetActor);
 
-		if (!bidPaymentData.canBuy) {
-			ui.notifications.warn("Insufficient funds");
+		if (lib.isPriceHigherThan(auction.actualMininumBidPriceData, bidPaymentData)) {
+			ui.notifications.warn(`Insufficient bid - you must bid more than ${auction.actualMininumBidPrice}`);
 			return false;
 		}
 
-		const latestBidPrice = (auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.HIDDEN
-			? auction?.bids.filter(bid => bid.user === game.user)?.[0]
-			: auction?.bids?.[0])?.price;
-
-		let minimumBidPrice = latestBidPrice ?? auction.startPrice;
-
-		if (auction.actualMininumBidPrice) {
-			minimumBidPrice = game.itempiles.API.calculateCurrencies(minimumBidPrice, auction.actualMininumBidPrice, false);
-		}
-
-		const latestBidPaymentData = lib.getPriceFromData(minimumBidPrice);
-
-		if (lib.isPriceHigherThan(latestBidPaymentData, bidPaymentData)) {
-			ui.notifications.warn(`Insufficient bid - you must bid more than ${minimumBidPrice}`);
-			return;
+		if (!bidPaymentData.canBuy) {
+			ui.notifications.warn(`Insufficient funds - you cannot afford to bid ${bidCurrencies}`);
+			return false;
 		}
 
 		const existingBids = lib.getUserBids();
