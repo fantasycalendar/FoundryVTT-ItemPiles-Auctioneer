@@ -15,7 +15,7 @@
 
 	const validActors = game.actors.filter(actor => {
 		return actor.isOwner
-			|| (flagStore.allowBankerVaults && actor.getFlag("item_piles_bankers", "vaultUserId") === game.userId);
+			|| ($flagStore.allowBankerVaults && actor.getFlag("item_piles_bankers", "vaultUserId") === game.userId);
 	}).map(actor => {
 			const actorFlagData = game.itempiles.API.getActorFlagData(actor);
 			return {
