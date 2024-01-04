@@ -345,8 +345,7 @@ function cleanUserFlags(acc, entry, flagPath) {
 	return acc;
 }
 
-
-export function getLogData(auctioneer) {
+export function getAuctionMigrationData(auctioneer, getLogs = true) {
 
 	const flags = getAuctioneerActorFlags(auctioneer);
 
@@ -354,24 +353,38 @@ export function getLogData(auctioneer) {
 	const auctioneerBidsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG) ?? [];
 	const auctioneerBuyoutsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG) ?? [];
 
-	const { auctions, bids, buyouts} = getAuctioneerData(auctioneer);
+	const { auctions, bids, buyouts } = getAuctioneerData(auctioneer);
 
-	const claimedAuctions = auctions.filter(auction => auction.claimed && auction.origin === "user").map(auction => auction._source);
-	const claimedBids = bids.filter(bid => bid.claimed && bid.origin === "user").map(bid => bid._source);
-	const claimedBuyouts = buyouts.filter(buyout => buyout.claimed && buyout.origin === "user").map(buyout => buyout._source);
+	const auctionsToMigrate = auctions.filter(auction => {
+		return auction.origin === "user" && (auction.claimed || auction.toMigrate);
+	}).map(auction => auction._source);
+
+	const bidsToMigrate = bids.filter(bid => {
+		return bid.origin === "user" && (bid.claimed || bid.toMigrate || auctioneerBidsData.some(finalBid => {
+			return finalBid.auctionUuid === bid.auctionUuid && (finalBid.claimed);
+		}));
+	}).map(bid => bid._source);
+
+	const buyoutsToMigrate = buyouts.filter(buyout => {
+		return buyout.origin === "user" && (buyout.claimed || buyout.toMigrate);
+	}).map(buyout => buyout._source);
 
 	let recipientCurrencies = "";
 	const actorUpdates = {};
-	if (claimedAuctions.length) {
+	if (auctionsToMigrate.length) {
 
 		if (!actorUpdates["_id"]) actorUpdates["_id"] = auctioneer.id;
-		actorUpdates[CONSTANTS.AUCTIONS_FULL_FLAG] = auctioneerAuctionsData.concat(claimedAuctions);
+		actorUpdates[CONSTANTS.AUCTIONS_FULL_FLAG] = Object.values(auctioneerAuctionsData.concat(auctionsToMigrate).reduce((acc, auction) => {
+			if (!acc[auction.id]) acc[auction.id] = auction;
+			return acc;
+		}, {}));
 
-		for (const claimedAuction of claimedAuctions) {
-			if (!claimedAuction.won) {
-				recipientCurrencies = recipientCurrencies && claimedAuction.depositPrice
-					? game.itempiles.API.calculateCurrencies(recipientCurrencies, claimedAuction.depositPrice, false)
-					: claimedAuction.depositPrice || recipientCurrencies;
+		for (const auction of auctionsToMigrate) {
+			if (auction.claimed) continue;
+			if (!auction.won) {
+				recipientCurrencies = recipientCurrencies && auction.depositPrice
+					? game.itempiles.API.calculateCurrencies(recipientCurrencies, auction.depositPrice, false)
+					: auction.depositPrice || recipientCurrencies;
 			} else if (flags.auctionFee) {
 				const auctionFee = Math.max(0, flags.auctionFee ?? 0);
 				const fee = game.itempiles.API.calculateCurrencies(price, auctionFee / 100);
@@ -382,31 +395,37 @@ export function getLogData(auctioneer) {
 		}
 	}
 
-	if (claimedBids.length) {
+	if (bidsToMigrate.length) {
 		if (!actorUpdates["_id"]) actorUpdates["_id"] = auctioneer.id;
-		actorUpdates[CONSTANTS.BIDS_FULL_FLAG] = auctioneerBidsData.concat(claimedBids)
+		actorUpdates[CONSTANTS.BIDS_FULL_FLAG] = Object.values(auctioneerBidsData.concat(bidsToMigrate).reduce((acc, bid) => {
+			if (!acc[bid.id]) acc[bid.id] = bid;
+			return acc;
+		}, {}));
 	}
-	if (claimedBuyouts.length) {
+	if (buyoutsToMigrate.length) {
 		if (!actorUpdates["_id"]) actorUpdates["_id"] = auctioneer.id;
-		actorUpdates[CONSTANTS.BUYOUTS_FULL_FLAG] = auctioneerBuyoutsData.concat(claimedBuyouts)
+		actorUpdates[CONSTANTS.BUYOUTS_FULL_FLAG] = Object.values(auctioneerBuyoutsData.concat(buyoutsToMigrate).reduce((acc, buyout) => {
+			if (!acc[buyout.id]) acc[buyout.id] = buyout;
+			return acc;
+		}, {}));
 	}
 
 	let userUpdates = {};
-	const userAuctionUpdates = claimedAuctions.reduce((acc, auction) => {
+	const userAuctionUpdates = auctionsToMigrate.reduce((acc, auction) => {
 		return cleanUserFlags(acc, auction, CONSTANTS.AUCTIONS_FLAG);
 	}, {});
 	if (!foundry.utils.isEmpty(userAuctionUpdates)) {
 		userUpdates = foundry.utils.mergeObject(userUpdates, userAuctionUpdates);
 	}
 
-	const userBidUpdates = claimedBids.reduce((acc, bid) => {
+	const userBidUpdates = bidsToMigrate.reduce((acc, bid) => {
 		return cleanUserFlags(acc, bid, CONSTANTS.BIDS_FLAG);
 	}, {})
 	if (!foundry.utils.isEmpty(userBidUpdates)) {
 		userUpdates = foundry.utils.mergeObject(userUpdates, userBidUpdates);
 	}
 
-	const userBuyoutUpdates = claimedBuyouts.reduce((acc, buyout) => {
+	const userBuyoutUpdates = buyoutsToMigrate.reduce((acc, buyout) => {
 		return cleanUserFlags(acc, buyout, CONSTANTS.BUYOUTS_FLAG);
 	}, {})
 	if (!foundry.utils.isEmpty(userBuyoutUpdates)) {
@@ -420,42 +439,22 @@ export function getLogData(auctioneer) {
 		}
 	})
 
+	return {
+		userUpdates,
+		actorUpdates,
+		recipientCurrencies
+	};
+
+}
+
+export function getLogData(auctioneer) {
+
+	const { auctions, bids, buyouts } = getAuctioneerData(auctioneer);
+
 	const currentDatetime = evaluateFoundryTime(auctioneer);
 
 	const auctionLogs = auctions
 		.reduce((acc, auction, index) => {
-			if (!acc[auction.id]) {
-				acc[auction.id] = {
-					data: auction,
-					type: "AuctionLog",
-					id: auction.id,
-					date: auction.date,
-					visible: true,
-					priority: index
-				};
-			}
-			if (auction.expired && !auction.cancelled) {
-				if (!auction.won && !acc[auction.id + "-expired"]) {
-					acc[auction.id + "-expired"] = {
-						data: auction,
-						type: "ExpiredAuctionLog",
-						id: auction.id + "-expired",
-						date: auction.expiryDate,
-						visible: true,
-						priority: index
-					};
-				}
-				if (auction.claimed && currentDatetime >= auction.claimedDate && !acc[auction.id + "-claimed"]) {
-					acc[auction.id + "-claimed"] = {
-						data: auction,
-						type: "ClaimedAuctionLog",
-						id: auction.id + "-claimed",
-						date: auction.claimedDate,
-						visible: true,
-						priority: index
-					};
-				}
-			}
 			if (auction.cancelled && auction.claimed && currentDatetime >= auction.claimedDate && !acc[auction.id + "-cancelled"]) {
 				acc[auction.id + "-cancelled"] = {
 					data: auction,
@@ -466,18 +465,79 @@ export function getLogData(auctioneer) {
 					priority: index
 				};
 			}
+			if (!auction.cancelled && auction.expired && auction.claimed && !auction.won && !acc[auction.id + "-claimed-expired"]) {
+				acc[auction.id + "-claimed-expired"] = {
+					data: auction,
+					type: "ClaimedExpiredAuctionLog",
+					id: auction.id + "-claimed-expired",
+					date: auction.claimedDate,
+					visible: true,
+					priority: index + 1
+				};
+			}
+			if (!auction.cancelled && auction.expired && auction.claimed && auction.won && currentDatetime >= auction.claimedDate && !acc[auction.id + "-claimed"]) {
+				acc[auction.id + "-claimed"] = {
+					data: auction,
+					type: "ClaimedAuctionLog",
+					id: auction.id + "-claimed",
+					date: auction.claimedDate,
+					visible: true,
+					priority: index + 2
+				};
+			}
+			if (!auction.cancelled && auction.expired && !auction.won && !acc[auction.id + "-expired"]) {
+				acc[auction.id + "-expired"] = {
+					data: auction,
+					type: "ExpiredAuctionLog",
+					id: auction.id + "-expired",
+					date: auction.expiryDate,
+					visible: true,
+					priority: index + 3
+				};
+			}
+			if (!auction.cancelled && auction.expired && auction.won && !acc[auction.id + "-successful-expired"]) {
+				acc[auction.id + "-successful-expired"] = {
+					data: auction,
+					type: "SuccessfulExpiredAuctionLog",
+					id: auction.id + "-successful-expired",
+					date: auction.expiryDate,
+					visible: true,
+					priority: index + 4
+				};
+			}
+			if (!acc[auction.id]) {
+				acc[auction.id] = {
+					data: auction,
+					type: "AuctionLog",
+					id: auction.id,
+					date: auction.date,
+					visible: true,
+					priority: index + 5
+				};
+			}
 			return acc;
 		}, {});
 
 	const bidLogs = bids.reduce((acc, bid, index) => {
-		if (acc[bid.id]) return acc;
-		acc[bid.id] = {
-			data: bid,
-			type: "BidLog",
-			id: bid.id,
-			date: bid.date,
-			visible: true,
-			priority: index
+		if (bid.claimed && currentDatetime >= bid.claimedDate && !acc[bid.claimed + "-claimed"]) {
+			acc[bid.id + "-claimed"] = {
+				data: bid,
+				type: "ClaimedBidLog",
+				id: bid.id + "-claimed",
+				date: bid.claimedDate,
+				visible: true,
+				priority: index
+			}
+		}
+		if (!acc[bid.id]) {
+			acc[bid.id] = {
+				data: bid,
+				type: "BidLog",
+				id: bid.id,
+				date: bid.date,
+				visible: true,
+				priority: index + 1
+			}
 		}
 		return acc;
 	}, {});
@@ -495,22 +555,17 @@ export function getLogData(auctioneer) {
 		return acc;
 	}, {});
 
-	return {
-		logs: Object.values(auctionLogs)
-			.concat(Object.values(bidLogs))
-			.concat(Object.values(buyoutLogs))
-			.map((entry, index) => ({
-				index, ...entry
-			}))
-			.sort((a, b) => {
-				return b.date === a.date
-					? (a.priority === b.priority ? b.index - a.index : a.priority - b.priority)
-					: b.date - a.date;
-			}),
-		userUpdates,
-		actorUpdates,
-		recipientCurrencies
-	};
+	return Object.values(auctionLogs)
+		.concat(Object.values(bidLogs))
+		.concat(Object.values(buyoutLogs))
+		.map((entry, index) => ({
+			index, ...entry
+		}))
+		.sort((a, b) => {
+			return b.date === a.date
+				? (a.priority === b.priority ? b.index - a.index : a.priority - b.priority)
+				: b.date - a.date;
+		})
 
 }
 
@@ -553,14 +608,6 @@ export function getAuctioneerData(auctioneer) {
 	const auctioneerBuyoutsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG) ?? [];
 	const auctioneerBidsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG) ?? [];
 
-	auctionFlags.filter(source => {
-		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userId);
-	}).forEach(source => {
-		const auction = makeAuction(auctioneer, source, flags);
-		auction.origin = "user";
-		auctions[auction.uuid] = auction;
-	});
-
 	auctioneerAuctionsData.filter(source => {
 		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userId);
 	}).forEach(source => {
@@ -569,12 +616,12 @@ export function getAuctioneerData(auctioneer) {
 		auctions[auction.uuid] = auction;
 	});
 
-	buyoutFlags.filter(source => {
-		return source.auctionUuid.includes("-" + auctioneer.uuid + "-") && auctions[source.auctionUuid];
+	auctionFlags.filter(source => {
+		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userId);
 	}).forEach(source => {
-		const buyout = makeBuyout(auctioneer, source, auctions, flags);
-		buyout.origin = "user";
-		buyouts[buyout.id] = buyout;
+		const auction = makeAuction(auctioneer, source, flags);
+		auction.origin = "user";
+		auctions[auction.uuid] = auction;
 	});
 
 	auctioneerBuyoutsData.filter(source => {
@@ -585,14 +632,12 @@ export function getAuctioneerData(auctioneer) {
 		buyouts[buyout.id] = buyout;
 	});
 
-	bidFlags.filter(source => {
-		return source.auctionUuid.includes("-" + auctioneer.uuid + "-")
-			&& auctions[source.auctionUuid]
-			&& !auctions[source.auctionUuid].won;
+	buyoutFlags.filter(source => {
+		return source.auctionUuid.includes("-" + auctioneer.uuid + "-") && auctions[source.auctionUuid];
 	}).forEach(source => {
-		const bid = makeBid(auctioneer, source, auctions, flags);
-		bid.origin = "user";
-		bids[bid.id] = bid;
+		const buyout = makeBuyout(auctioneer, source, auctions, flags);
+		buyout.origin = "user";
+		buyouts[buyout.id] = buyout;
 	});
 
 	auctioneerBidsData.filter(source => {
@@ -602,6 +647,16 @@ export function getAuctioneerData(auctioneer) {
 	}).forEach(source => {
 		const bid = makeBid(auctioneer, source, auctions, flags);
 		bid.origin = "auctioneer";
+		bids[bid.id] = bid;
+	});
+
+	bidFlags.filter(source => {
+		return source.auctionUuid.includes("-" + auctioneer.uuid + "-")
+			&& auctions[source.auctionUuid]
+			&& !auctions[source.auctionUuid].won;
+	}).forEach(source => {
+		const bid = makeBid(auctioneer, source, auctions, flags);
+		bid.origin = "user";
 		bids[bid.id] = bid;
 	});
 
@@ -616,8 +671,8 @@ export function getAuctioneerData(auctioneer) {
 			: (ownedBids.length ? ownedBids[0].priceData : auction.startPriceData);
 
 		auction.bidPrice = auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user
-			? (auction.bids.length ? auction.bids[0].price : false)
-			: (ownedBids.length ? ownedBids[0].price : false);
+			? (auction.bids.length ? auction.bids[0].price : auction.startPrice)
+			: (ownedBids.length ? ownedBids[0].price : auction.startPrice);
 
 		auction.actualMininumBidPrice = auction.minBidPrice && auction.bidPrice
 			? game.itempiles.API.calculateCurrencies(auction.bidPrice, auction.minBidPrice, false)
@@ -695,14 +750,15 @@ export function makeAuction(auctioneer, source, flags) {
 	auction.actorUuid = auction._source.actorUuid;
 	auction.cancelled = auction._source.cancelled;
 	auction.claimed = auction._source.claimed;
-	auction.gmClaimed = auction._source.gmClaimed;
+	auction.toMigrate = auction._source.toMigrate;
 	auction.item = new Item.implementation(auction._source.itemData)
 	auction.user = game.users.get(auction._source.userId) ?? false;
 	auction.actor = auction._source.actorUuid ? fromUuidSync(auction._source.actorUuid) ?? false : false;
 	auction.date = auction._source.date;
 	auction.claimedDate = auction._source.claimedDate;
 	auction.expiryDate = auction._source.expiryDate;
-	auction.expired = evaluateFoundryTime(auctioneer) >= auction._source.expiryDate;
+	const currentTime = evaluateFoundryTime(auctioneer);
+	auction.expired = currentTime >= auction._source.expiryDate && (!auction._source.claimedDate || auction._source.claimedDate >= auction._source.expiryDate);
 	auction.timeLeft = dateNumberToRelativeString(auctioneer, auction._source.expiryDate);
 	auction.quantity = auction._source.quantity;
 	auction.bidVisibility = auction._source.bidVisibility;
@@ -741,12 +797,14 @@ export function makeBuyout(auctioneer, source, auctions, flags) {
 	buyout.priceData = getPriceFromData(buyout._source.price);
 	buyout.price = buyout._source.price;
 	buyout.claimed = buyout._source.claimed;
+	buyout.claimedDate = buyout._source.claimedDate;
+	buyout.toMigrate = buyout._source.toMigrate;
 	buyout.auctionUuid = buyout._source.auctionUuid;
 	buyout.auction = auctions[buyout._source.auctionUuid];
 	buyout.auction.won = buyout;
 	buyout.displayName = flags.showActorName
-			? buyout.actor?.name ?? buyout.user?.name ?? "Unknown"
-			: buyout.user?.name ?? buyout.actor?.name ?? "Unknown";
+		? buyout.actor?.name ?? buyout.user?.name ?? "Unknown"
+		: buyout.user?.name ?? buyout.actor?.name ?? "Unknown";
 	return buyout;
 }
 
@@ -762,12 +820,14 @@ export function makeBid(auctioneer, source, auctions, flags) {
 	bid.priceData = getPriceFromData(bid._source.price);
 	bid.price = bid._source.price;
 	bid.claimed = bid._source.claimed;
+	bid.claimedDate = bid._source.claimedDate
+	bid.toMigrate = bid._source.toMigrate;
 	bid.bidStatus = { value: -Infinity, label: "Low Bid" };
 	bid.auctionUuid = bid._source.auctionUuid;
 	bid.auction = auctions[bid._source.auctionUuid];
-	if(bid.auction) {
+	if (bid.auction) {
 		bid.auction.bids.push(bid);
-	}else{
+	} else {
 		console.warn(`Could not find auction for bid ${bid._source.id} and auction ${bid._source.auctionUuid} on user ${bid.user.name}!`);
 	}
 	bid.displayName = flags.showActorName
@@ -788,7 +848,7 @@ export async function migrateData(auctioneer = false) {
 	const auctioneers = auctioneersActors
 		.map(auctioneer => {
 			const flags = getAuctioneerActorFlags(auctioneer);
-			const { userUpdates, actorUpdates, recipientCurrencies } = getLogData(auctioneer);
+			const { userUpdates, actorUpdates, recipientCurrencies } = getAuctionMigrationData(auctioneer);
 			const recipient = flags.owner?.uuid ? fromUuidSync(flags.owner?.uuid) ?? auctioneer : auctioneer;
 			return {
 				id: auctioneer.id,

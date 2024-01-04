@@ -97,8 +97,13 @@ const CONSTANTS = {
 		 * @property {String} depositPrice
 		 * @property {Number} quantity
 		 * @property {String} bidVisibility
+		 * @property {String} reserveLimitVisibility
+		 * @property {Boolean} claimed
+		 * @property {Boolean} cancelled
+		 * @property {Boolean} toMigrate
 		 * @property {Number} date
 		 * @property {Number} expiryDate
+		 * @property {Number} claimedDate
 		 */
 		AUCTION: {
 			id: "",
@@ -115,8 +120,8 @@ const CONSTANTS = {
 			bidVisibility: "visible",
 			reserveLimitVisibility: "visible",
 			claimed: false,
-			gmClaimed: false,
 			cancelled: false,
+			toMigrate: false,
 			date: 0,
 			expiryDate: 0,
 			claimedDate: 0
@@ -126,8 +131,12 @@ const CONSTANTS = {
 		 * @property {String} id
 		 * @property {String} userId
 		 * @property {String} auctionUuid
+		 * @property {String} actorUuid
 		 * @property {Number} price
 		 * @property {Number} date
+		 * @property {Number} claimedDate
+		 * @property {Boolean} claimed
+		 * @property {Boolean} toMigrate
 		 */
 		BID: {
 			id: "",
@@ -137,15 +146,20 @@ const CONSTANTS = {
 			price: "",
 			date: 0,
 			claimedDate: 0,
-			claimed: false
+			claimed: false,
+			toMigrate: false
 		},
 		/**
 		 * @typedef {Object} Buyout
 		 * @property {String} id
 		 * @property {String} userId
 		 * @property {String} auctionUuid
+		 * @property {String} actorUuid
 		 * @property {Number} price
 		 * @property {Number} date
+		 * @property {Number} claimedDate
+		 * @property {Boolean} claimed
+		 * @property {Boolean} toMigrate
 		 */
 		BUYOUT: {
 			id: "",
@@ -155,7 +169,8 @@ const CONSTANTS = {
 			price: "",
 			date: 0,
 			claimedDate: 0,
-			claimed: false
+			claimed: false,
+			toMigrate: false
 		},
 	}
 }

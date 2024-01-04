@@ -18,6 +18,6 @@
 		<span>{data.displayName}</span> fully <span class="auction-buyout-log">bought out</span>
 		the {@html getItemColorElement(data.auction.item)}<span
 	>{data.auction.item.name}</span> {quantity} from
-		<span>{data.auction.displayName}</span> for {price}
+		<span>{data.auction.displayName}</span> for <span>{price}</span>
 	</div>
 </LogEntry>

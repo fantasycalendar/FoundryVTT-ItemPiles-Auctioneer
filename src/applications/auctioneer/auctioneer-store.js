@@ -336,9 +336,16 @@ export function createStore(auctioneer) {
 
 		const existingBidForAuctionIndex = existingBids.findIndex(bid => bid.auctionUuid === auction.uuid)
 
+		for(const bid of existingBids){
+			if(bid.auctionUuid === auction.uuid){
+				bid.toMigrate = true;
+			}
+		}
+
 		existingBids.push({
 			id: randomID(),
 			userId: game.userId,
+			actorUuid: targetActor.uuid,
 			auctionUuid: existingBids?.[existingBidForAuctionIndex]?.uuid ?? auction.uuid,
 			price: bidPaymentData.basePriceString,
 			date: lib.evaluateFoundryTime(auctioneer)
@@ -368,8 +375,8 @@ export function createStore(auctioneer) {
 		existingBuyouts.push({
 			id: randomID(),
 			userId: game.userId,
-			auctionUuid: auction.uuid,
 			actorUuid: targetActor.uuid,
+			auctionUuid: auction.uuid,
 			price: auction.buyoutPrice,
 			date: lib.evaluateFoundryTime(auctioneer)
 		});
@@ -402,7 +409,6 @@ export function createStore(auctioneer) {
 		if (!uuid) return;
 		const actor = fromUuidSync(uuid);
 		if (!actor) return;
-		const flags = get(auctioneerFlags);
 		actorDoc.set(actor);
 		game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.USER_AUCTIONEER_FLAGS, {
 			[auctioneer.id]: uuid
@@ -433,7 +439,7 @@ export function createStore(auctioneer) {
 		update(data => {
 			const flags = get(auctioneerFlags);
 			const doc = get(actorDoc);
-			if (flags.entryItem?.data && doc){
+			if (flags.entryItem?.data && doc) {
 				const foundSimilarItem = game.itempiles.API.findSimilarItem(doc.items, flags.entryItem.data);
 				data.access = !!foundSimilarItem || game.user.isGM;
 			}
@@ -552,7 +558,7 @@ export function createStore(auctioneer) {
 
 	async function claimAuctions(auctions, cancelled = false) {
 		const ownedAuctions = auctions.filter(auction => auction.user === game.user && !auction.claimed);
-		const otherAuctions = auctions.filter(auction => auction.user !== game.user && !auction.claimed);
+		const otherAuctions = auctions.filter(auction => auction.user !== game.user);
 		const actor = get(actorDoc);
 		const flags = get(auctioneerFlags);
 		const itemsToCreate = [];
@@ -594,6 +600,7 @@ export function createStore(auctioneer) {
 				}
 				return {
 					claimed: true,
+					toMigrate: true,
 					claimedDate: lib.evaluateFoundryTime(auctioneer),
 					cancelled,
 					...existingAuction
@@ -605,37 +612,59 @@ export function createStore(auctioneer) {
 
 			for (const auction of otherAuctions) {
 
+				let idToClaim;
 				if (auction.won.user === game.user) {
+					if (auction.won.claimed) return;
 					itemsToCreate.push({
 						item: auction.item.toObject(),
 						quantity: auction.quantity
 					});
+					idToClaim = auction.won.id;
 				} else {
-					const auctionBids = auction.bids.filter(bid => bid.user === game.user);
-					if (auctionBids.length) {
-						failedBidCurrencies.push(auctionBids[0].price);
+					const ownFailedAuctionBids = auction.bids
+						.filter(bid => bid.user === game.user && !bid.toMigrate)
+						.sort((a, b) => b.date - a.date)
+					if (ownFailedAuctionBids.length && !ownFailedAuctionBids[0].claimed) {
+						failedBidCurrencies.push(ownFailedAuctionBids[0].price)
+						idToClaim = ownFailedAuctionBids[0].id;
 					}
 				}
 
 				ownBids = ownBids.map(existingBid => {
-					if (existingBid.claimed || auction.won.id !== existingBid.id) return existingBid;
+					if (auction.uuid !== existingBid.auctionUuid || existingBid.toMigrate) {
+						return existingBid;
+					}
+					if(idToClaim !== existingBid.id){
+						return {
+							toMigrate: true,
+							...existingBid
+						}
+					}
 					return {
 						claimed: true,
+						toMigrate: true,
 						claimedDate: lib.evaluateFoundryTime(auctioneer),
 						...existingBid
 					}
 				});
 
-				if (auction.won.type === "buyout") {
-					ownBuyouts = ownBuyouts.map(existingBuyout => {
-						if (existingBuyout.claimed || auction.won.id !== existingBuyout.id) return existingBuyout;
+				ownBuyouts = ownBuyouts.map(existingBuyout => {
+					if (auction.uuid !== existingBuyout.auctionUuid || existingBuyout.toMigrate) {
+						return existingBuyout;
+					}
+					if(idToClaim !== existingBuyout.id){
 						return {
-							claimed: true,
-							claimedDate: lib.evaluateFoundryTime(auctioneer),
+							toMigrate: true,
 							...existingBuyout
 						}
-					});
-				}
+					}
+					return {
+						claimed: true,
+						toMigrate: true,
+						claimedDate: lib.evaluateFoundryTime(auctioneer),
+						...existingBuyout
+					}
+				});
 			}
 		}
 
@@ -690,9 +719,9 @@ export function createStore(auctioneer) {
 	async function relistAuction(auction) {
 		const existingAuctions = lib.getUserAuctions();
 		const indexToRefresh = existingAuctions.findIndex(existingAuction => existingAuction.uuid === auction.uuid);
-		const duplicatedAuction = foundry.utils.duplicate(existingAuctions[indexToRefresh]);
+		const duplicatedAuction = foundry.utils.deepClone(existingAuctions[indexToRefresh]);
 		existingAuctions[indexToRefresh].claimed = true;
-		duplicatedAuction.date = lib.evaluateFoundryTime(auctioneer)
+		duplicatedAuction.date = lib.evaluateFoundryTime(auctioneer);
 		duplicatedAuction.expiryDate = lib.evaluateFoundryTime(auctioneer, duplicatedAuction.duration);
 		const actor = get(actorDoc);
 		const flags = get(auctioneerFlags);

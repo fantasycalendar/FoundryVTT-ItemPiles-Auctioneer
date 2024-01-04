@@ -2,30 +2,36 @@
 
 	import { getContext } from "svelte";
 	import { VirtualScroll } from "svelte-virtual-scroll-list";
+	import { getLogData } from "~/lib.js";
+	import { writable } from "svelte/store";
 	import AuctionLog from "~/applications/auctioneer/Logs/AuctionLog.svelte";
 	import ExpiredAuctionLog from "~/applications/auctioneer/Logs/ExpiredAuctionLog.svelte";
 	import BidLog from "~/applications/auctioneer/Logs/BidLog.svelte";
 	import BuyoutLog from "~/applications/auctioneer/Logs/BuyoutLog.svelte";
 	import ClaimedAuctionLog from "~/applications/auctioneer/Logs/ClaimedAuctionLog.svelte";
 	import CancelledAuctionLog from "~/applications/auctioneer/Logs/CancelledAuctionLog.svelte";
-	import { getLogData } from "~/lib.js";
-	import { writable } from "svelte/store";
+	import ClaimedBidLog from "~/applications/auctioneer/Logs/ClaimedBidLog.svelte";
+	import ClaimedExpiredAuctionLog from "~/applications/auctioneer/Logs/ClaimedExpiredAuctionLog.svelte";
+	import SuccessfulExpiredAuctionLog from "~/applications/auctioneer/Logs/SuccessfulExpiredAuctionLog.svelte";
 
 	const store = getContext("store");
 
 	const componentTypes = {
 		AuctionLog,
 		ExpiredAuctionLog,
-		BidLog,
-		BuyoutLog,
+		SuccessfulExpiredAuctionLog,
 		ClaimedAuctionLog,
+		ClaimedExpiredAuctionLog,
 		CancelledAuctionLog,
+		BidLog,
+		ClaimedBidLog,
+		BuyoutLog
 	}
 
 	const auctioneerDoc = store.auctioneerDoc;
 	let allEntries = writable([]);
 	$: {
-		$allEntries = getLogData($auctioneerDoc).logs
+		$allEntries = getLogData($auctioneerDoc);
 	}
 
 	const searchDebounce = foundry.utils.debounce((searchText) => {

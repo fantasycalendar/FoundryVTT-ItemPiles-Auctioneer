@@ -522,15 +522,19 @@
   }
 
   .auction-created-log {
-    color: #008805;
+    color: #006888;
   }
 
   .auction-bid-log {
     color: #008868;
   }
 
-  .auction-bid-log {
+  .auction-buyout-log {
     color: #6f8800;
+  }
+
+  .auction-successful-bid-log {
+    color: #128800;
   }
 
   .auction-expired-log {
