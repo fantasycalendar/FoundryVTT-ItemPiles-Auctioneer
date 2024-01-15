@@ -356,17 +356,15 @@ export function getAuctionMigrationData(auctioneer, getLogs = true) {
 	const { auctions, bids, buyouts } = getAuctioneerData(auctioneer);
 
 	const auctionsToMigrate = auctions.filter(auction => {
-		return auction.origin === "user" && (auction.claimed || auction.toMigrate);
+		return auction.origin === "user" && auction.toMigrate;
 	}).map(auction => auction._source);
 
 	const bidsToMigrate = bids.filter(bid => {
-		return bid.origin === "user" && (bid.claimed || bid.toMigrate || auctioneerBidsData.some(finalBid => {
-			return finalBid.auctionUuid === bid.auctionUuid && (finalBid.claimed);
-		}));
+		return bid.origin === "user" && bid.toMigrate;
 	}).map(bid => bid._source);
 
 	const buyoutsToMigrate = buyouts.filter(buyout => {
-		return buyout.origin === "user" && (buyout.claimed || buyout.toMigrate);
+		return buyout.origin === "user" && buyout.toMigrate;
 	}).map(buyout => buyout._source);
 
 	let recipientCurrencies = "";
