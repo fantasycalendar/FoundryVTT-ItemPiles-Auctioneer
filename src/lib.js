@@ -432,8 +432,8 @@ export function getAuctionMigrationData(auctioneer, getLogs = true) {
 
 	userUpdates = Object.entries(userUpdates).map(([userId, updates]) => {
 		return {
-			_id: userId,
-			...updates
+			...updates,
+			_id: userId
 		}
 	})
 
@@ -557,7 +557,7 @@ export function getLogData(auctioneer) {
 		.concat(Object.values(bidLogs))
 		.concat(Object.values(buyoutLogs))
 		.map((entry, index) => ({
-			index, ...entry
+			...entry, index
 		}))
 		.sort((a, b) => {
 			return b.date === a.date

@@ -536,9 +536,9 @@ export function createStore(auctioneer) {
 		for (let i = 0; i < data.numAuctions; i++) {
 			const id = randomID();
 			auctions.push({
+				...baseFlagData,
 				id,
-				uuid: `${id}-${auctioneer.uuid}-${game.user.id}`,
-				...baseFlagData
+				uuid: `${id}-${auctioneer.uuid}-${game.user.id}`
 			});
 		}
 
@@ -599,11 +599,11 @@ export function createStore(auctioneer) {
 					return existingAuction;
 				}
 				return {
+					...existingAuction,
 					claimed: true,
 					toMigrate: true,
 					claimedDate: lib.evaluateFoundryTime(auctioneer),
-					cancelled,
-					...existingAuction
+					cancelled
 				}
 			});
 		}
@@ -636,15 +636,15 @@ export function createStore(auctioneer) {
 					}
 					if(idToClaim !== existingBid.id){
 						return {
-							toMigrate: true,
-							...existingBid
+							...existingBid,
+							toMigrate: true
 						}
 					}
 					return {
+						...existingBid,
 						claimed: true,
 						toMigrate: true,
-						claimedDate: lib.evaluateFoundryTime(auctioneer),
-						...existingBid
+						claimedDate: lib.evaluateFoundryTime(auctioneer)
 					}
 				});
 
@@ -654,15 +654,15 @@ export function createStore(auctioneer) {
 					}
 					if(idToClaim !== existingBuyout.id){
 						return {
-							toMigrate: true,
-							...existingBuyout
+							...existingBuyout,
+							toMigrate: true
 						}
 					}
 					return {
+						...existingBuyout,
 						claimed: true,
 						toMigrate: true,
-						claimedDate: lib.evaluateFoundryTime(auctioneer),
-						...existingBuyout
+						claimedDate: lib.evaluateFoundryTime(auctioneer)
 					}
 				});
 			}
