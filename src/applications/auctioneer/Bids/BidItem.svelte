@@ -11,7 +11,7 @@
 
 	$: selected = bid.auction.uuid === $store.tabs[$store.activeTab].selected;
 	$: auctionSucceeded = bid.auction.won ? bid.auction.won.user === game.user : false;
-	$: auctionFailed = bid.auction.won ? bid.auction.won.user !== game.user : false;
+	$: auctionFailed = bid.auction.cancelled || (bid.auction.won ? bid.auction.won.user !== game.user : false);
 
 </script>
 

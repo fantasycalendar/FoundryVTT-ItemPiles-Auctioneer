@@ -7,4 +7,8 @@ Hooks.once("ready", () => {
 	Hooks.on(game.itempiles.hooks.PRE_RENDER_INTERFACE, lib.auctioneerRendered);
 	game.itempiles.API.registerItemPileType(CONSTANTS.AUCTIONEER, "Auctioneer", CONSTANTS.AUCTIONEER_SETTINGS);
 	if (lib.isResponsibleGM()) lib.migrateData();
+
+	game.itempilesauctioneer.API = {
+		getAuctioneerData: lib.getAuctioneerData
+	}
 });

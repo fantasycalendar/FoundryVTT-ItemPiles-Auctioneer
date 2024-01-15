@@ -45,7 +45,7 @@
 </script>
 
 <div class="item-list-entry-actions">
-	{#if showCurrency && !auction.expired}
+	{#if showCurrency && !auction.expired && !auction.cancelled}
 		<div class="character-currencies">
 			{#each currencies as currency (currency.name)}
 				<div class="currency-list-item" data-tooltip={currency.name}>
@@ -75,9 +75,9 @@
 				Collect item
 			</ReactiveButton>
 		{:else}
-			{#if auction.expired}
+			{#if auction.expired || auction.cancelled}
 				<ReactiveButton callback={() => store.claimAuctions([auction])} completelyDisable
-				                disabled={!auction.expired}>
+				                disabled={!auction.expired && !auction.cancelled}>
 					Collect currency
 				</ReactiveButton>
 			{:else}

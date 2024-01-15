@@ -345,7 +345,7 @@ function cleanUserFlags(acc, entry, flagPath) {
 	return acc;
 }
 
-export function getAuctionMigrationData(auctioneer, getLogs = true) {
+export function getAuctionMigrationData(auctioneer) {
 
 	const flags = getAuctioneerActorFlags(auctioneer);
 
@@ -445,6 +445,11 @@ export function getAuctionMigrationData(auctioneer, getLogs = true) {
 
 }
 
+function _addToLog(acc, condition, data) {
+	if (!condition || acc[data.id]) return;
+	acc[data.id] = data;
+}
+
 export function getLogData(auctioneer) {
 
 	const { auctions, bids, buyouts } = getAuctioneerData(auctioneer);
@@ -453,103 +458,105 @@ export function getLogData(auctioneer) {
 
 	const auctionLogs = auctions
 		.reduce((acc, auction, index) => {
-			if (auction.cancelled && auction.claimed && currentDatetime >= auction.claimedDate && !acc[auction.id + "-cancelled"]) {
-				acc[auction.id + "-cancelled"] = {
-					data: auction,
-					type: "CancelledAuctionLog",
-					id: auction.id + "-cancelled",
-					date: auction.claimedDate,
-					visible: true,
-					priority: index
-				};
-			}
-			if (!auction.cancelled && auction.expired && auction.claimed && !auction.won && !acc[auction.id + "-claimed-expired"]) {
-				acc[auction.id + "-claimed-expired"] = {
-					data: auction,
-					type: "ClaimedExpiredAuctionLog",
-					id: auction.id + "-claimed-expired",
-					date: auction.claimedDate,
-					visible: true,
-					priority: index + 1
-				};
-			}
-			if (!auction.cancelled && auction.expired && auction.claimed && auction.won && currentDatetime >= auction.claimedDate && !acc[auction.id + "-claimed"]) {
-				acc[auction.id + "-claimed"] = {
-					data: auction,
-					type: "ClaimedAuctionLog",
-					id: auction.id + "-claimed",
-					date: auction.claimedDate,
-					visible: true,
-					priority: index + 2
-				};
-			}
-			if (!auction.cancelled && auction.expired && !auction.won && !acc[auction.id + "-expired"]) {
-				acc[auction.id + "-expired"] = {
-					data: auction,
-					type: "ExpiredAuctionLog",
-					id: auction.id + "-expired",
-					date: auction.expiryDate,
-					visible: true,
-					priority: index + 3
-				};
-			}
-			if (!auction.cancelled && auction.expired && auction.won && !acc[auction.id + "-successful-expired"]) {
-				acc[auction.id + "-successful-expired"] = {
-					data: auction,
-					type: "SuccessfulExpiredAuctionLog",
-					id: auction.id + "-successful-expired",
-					date: auction.expiryDate,
-					visible: true,
-					priority: index + 4
-				};
-			}
-			if (!acc[auction.id]) {
-				acc[auction.id] = {
-					data: auction,
-					type: "AuctionLog",
-					id: auction.id,
-					date: auction.date,
-					visible: true,
-					priority: index + 5
-				};
-			}
+
+			_addToLog(acc, auction.cancelled && auction.claimed && currentDatetime >= auction.claimedDate, {
+				data: auction,
+				type: "CancelledAuctionLog",
+				id: auction.id + "-cancelled",
+				date: auction.claimedDate,
+				visible: true,
+				priority: index
+			});
+
+			_addToLog(acc, !auction.cancelled && auction.expired && auction.claimed && !auction.won, {
+				data: auction,
+				type: "ClaimedExpiredAuctionLog",
+				id: auction.id + "-claimed-expired",
+				date: auction.claimedDate,
+				visible: true,
+				priority: index + 1
+			});
+
+			_addToLog(acc, !auction.cancelled && auction.expired && auction.claimed && auction.won && currentDatetime >= auction.claimedDate, {
+				data: auction,
+				type: "ClaimedAuctionLog",
+				id: auction.id + "-claimed",
+				date: auction.claimedDate,
+				visible: true,
+				priority: index + 2
+			});
+
+			_addToLog(acc, !auction.cancelled && auction.expired && !auction.won, {
+				data: auction,
+				type: "ExpiredAuctionLog",
+				id: auction.id + "-expired",
+				date: auction.expiryDate,
+				visible: true,
+				priority: index + 3
+			});
+
+			_addToLog(acc, !auction.cancelled && auction.expired && auction.won, {
+				data: auction,
+				type: "SuccessfulExpiredAuctionLog",
+				id: auction.id + "-successful-expired",
+				date: auction.expiryDate,
+				visible: true,
+				priority: index + 4
+			});
+
+			_addToLog(acc, true, {
+				data: auction,
+				type: "AuctionLog",
+				id: auction.id,
+				date: auction.date,
+				visible: true,
+				priority: index + 5
+			});
+
 			return acc;
 		}, {});
 
 	const bidLogs = bids.reduce((acc, bid, index) => {
-		if (bid.claimed && currentDatetime >= bid.claimedDate && !acc[bid.claimed + "-claimed"]) {
-			acc[bid.id + "-claimed"] = {
-				data: bid,
-				type: "ClaimedBidLog",
-				id: bid.id + "-claimed",
-				date: bid.claimedDate,
-				visible: true,
-				priority: index
-			}
-		}
-		if (!acc[bid.id]) {
-			acc[bid.id] = {
-				data: bid,
-				type: "BidLog",
-				id: bid.id,
-				date: bid.date,
-				visible: true,
-				priority: index + 1
-			}
-		}
+		_addToLog(acc, bid.claimed && currentDatetime >= bid.claimedDate && bid.auction.won === bid, {
+			data: bid,
+			type: "ClaimedBidLog",
+			id: bid.id + "-claimed",
+			date: bid.claimedDate,
+			visible: true,
+			priority: index
+		});
+
+		_addToLog(acc, bid.claimed && currentDatetime >= bid.claimedDate && bid.auction.won !== bid, {
+			data: bid,
+			type: "ClaimedLostBidLog",
+			id: bid.id + "-claimed-lost",
+			date: bid.claimedDate,
+			visible: true,
+			priority: index + 1
+		});
+
+		_addToLog(acc, true, {
+			data: bid,
+			type: "BidLog",
+			id: bid.id,
+			date: bid.date,
+			visible: true,
+			priority: index + 2
+		});
+
 		return acc;
 	}, {});
 
 	const buyoutLogs = buyouts.reduce((acc, buyout, index) => {
-		if (acc[buyout.id]) return acc;
-		acc[buyout.id] = {
+		_addToLog(acc, true, {
 			data: buyout,
 			type: "BuyoutLog",
 			id: buyout.id,
 			date: buyout.date,
 			visible: true,
 			priority: index
-		}
+		});
+
 		return acc;
 	}, {});
 
@@ -662,7 +669,7 @@ export function getAuctioneerData(auctioneer) {
 
 		auction.bids.sort((a, b) => b.priceData.totalPrice - a.priceData.totalPrice);
 
-		const ownedBids = auction.bids.filter(bid => bid.user === game.user);
+		const ownedBids = auction.bids.filter(bid => bid.user === game.user && !bid.claimed);
 
 		auction.bidPriceData = auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user
 			? (auction.bids.length ? auction.bids[0].priceData : auction.startPriceData)
@@ -691,6 +698,12 @@ export function getAuctioneerData(auctioneer) {
 			}
 			auction.highBidder = (auction.won.displayName || "Unknown") + " (buyout)";
 		} else {
+			if (auction.cancelled) {
+				auction.timeLeft = {
+					label: "Cancelled",
+					value: Infinity
+				}
+			}
 			auction.highBidder = auction.bids?.[0]?.displayName;
 			if (auction.expired && auction.bids.length) {
 				if (!auction.reservePrice || !isPriceHigherThan(auction.bids[0].priceData, auction.reservePriceData)) {
@@ -705,11 +718,16 @@ export function getAuctioneerData(auctioneer) {
 			}
 		}
 
-		if (ownedBids.length && !auction.claimed) {
+		if (ownedBids.length) {
 			const highestOwnedBid = ownedBids[0];
 			auction.highestOwnedBid = highestOwnedBid;
 			const bidIndex = auction.bids.indexOf(highestOwnedBid);
-			if (auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE) {
+			if (auction.cancelled || (auction.expired && auction.won !== highestOwnedBid)){
+				highestOwnedBid.bidStatus = {
+					value: Math.min(bidIndex, 3),
+					label: "Lost bid"
+				}
+			}else if (auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE) {
 				let label = "Low Bid";
 				if (bidIndex === 0) {
 					label = "Highest Bid"

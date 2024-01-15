@@ -13,6 +13,7 @@
 	import ClaimedBidLog from "~/applications/auctioneer/Logs/ClaimedBidLog.svelte";
 	import ClaimedExpiredAuctionLog from "~/applications/auctioneer/Logs/ClaimedExpiredAuctionLog.svelte";
 	import SuccessfulExpiredAuctionLog from "~/applications/auctioneer/Logs/SuccessfulExpiredAuctionLog.svelte";
+	import ClaimedLostBidLog from "~/applications/auctioneer/Logs/ClaimedLostBidLog.svelte";
 
 	const store = getContext("store");
 
@@ -25,6 +26,7 @@
 		CancelledAuctionLog,
 		BidLog,
 		ClaimedBidLog,
+		ClaimedLostBidLog,
 		BuyoutLog
 	}
 

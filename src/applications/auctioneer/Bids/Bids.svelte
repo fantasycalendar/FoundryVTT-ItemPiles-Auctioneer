@@ -13,8 +13,10 @@
 		const sortAlg = tab.sortByColumns[tab.sortBy].sort;
 		sortedBids = $store.auctionData.auctions
 			.filter(auction => {
-				return !auction.cancelled && auction.highestOwnedBid
+				return auction.highestOwnedBid
 					&& (
+						auction.cancelled
+						||
 						!auction.expired
 						||
 						(auction.expired && auction.won.user !== game.user && !auction.highestOwnedBid?.claimed)

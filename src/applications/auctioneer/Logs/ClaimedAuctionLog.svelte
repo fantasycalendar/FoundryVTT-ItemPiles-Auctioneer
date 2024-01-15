@@ -16,7 +16,7 @@
 <LogEntry date={entry.date}>
 	<div>
 		<span>{data.displayName}</span> <span
-		class="auction-claimed-log">claimed</span> the successful auction for {@html getItemColorElement(data.item)}<span
-	>{data.item.name}</span> {quantity} for <span>{price}</span>
+		class="auction-claimed-log">claimed</span> the money for the <span>successful</span> auction for {@html getItemColorElement(data.item)}<span
+	>{data.item.name}</span> {quantity} that sold for <span>{price}</span>
 	</div>
 </LogEntry>

@@ -355,9 +355,9 @@ export function createStore(auctioneer) {
 			? game.itempiles.API.calculateCurrencies(bidPaymentData.basePriceString, existingBids[existingBidForAuctionIndex]?.price)
 			: bidPaymentData.basePriceString;
 
-		await game.itempiles.API.removeCurrencies(targetActor, currencyCost);
-
 		await game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG, existingBids);
+
+		await game.itempiles.API.removeCurrencies(targetActor, currencyCost);
 
 		return true;
 
@@ -371,6 +371,15 @@ export function createStore(auctioneer) {
 			ui.notifications.warn("Insufficient funds - you do not have enough funds to buy out this auction");
 			return false;
 		}
+
+		const existingBids = lib.getUserBids();
+		for(const bid of existingBids){
+			if(bid.auctionUuid === auction.uuid){
+				bid.toMigrate = true;
+			}
+		}
+		await game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG, existingBids);
+
 		const existingBuyouts = lib.getUserBuyouts();
 		existingBuyouts.push({
 			id: randomID(),
@@ -380,8 +389,9 @@ export function createStore(auctioneer) {
 			price: auction.buyoutPrice,
 			date: lib.evaluateFoundryTime(auctioneer)
 		});
-		await game.itempiles.API.removeCurrencies(targetActor, auction.buyoutPrice);
-		return game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG, existingBuyouts);
+		await game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG, existingBuyouts);
+
+		return game.itempiles.API.removeCurrencies(targetActor, auction.buyoutPrice);
 	}
 
 	/**
