@@ -45,7 +45,7 @@
 		<div class="auction-entry-text">
 			{CONSTANTS.BID_VISIBILITY_UI_LABELS[bid.auction.bidVisibility]}
 		</div>
-		<div class="auction-entry-text">
+		<div class="auction-entry-text" class:auction-entry-bid-low={bid.bidStatus.value}>
 			{bid.bidStatus.label}
 		</div>
 		<div class="item-prices">

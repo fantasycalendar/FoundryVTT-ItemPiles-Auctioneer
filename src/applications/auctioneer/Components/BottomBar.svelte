@@ -1,7 +1,7 @@
 <script>
 
 	import * as lib from "~/lib.js";
-	import { getContext } from "svelte";
+	import { getContext, onDestroy } from "svelte";
 	import Select from 'svelte-select';
 	import { writable } from "svelte/store";
 	import ReactiveButton from "~/applications/auctioneer/Components/ReactiveButton.svelte";
@@ -13,38 +13,53 @@
 	const actorUuidStore = store.actorUuid;
 	const actorCurrencyStore = store.actorCurrencies;
 
-	const validActors = game.actors.filter(actor => {
-		return actor.isOwner
-			|| ($flagStore.allowBankerVaults && actor.getFlag("item_piles_bankers", "vaultUserId") === game.userId);
-	}).map(actor => {
-			const actorFlagData = game.itempiles.API.getActorFlagData(actor);
-			return {
-				value: actor.uuid,
-				label: actor.name,
-				hasPlayerOwner: actor.hasPlayerOwner,
-				group: !actor.hasPlayerOwner
-					? (actorFlagData.enabled ? (actorFlagData?.type === "vault" ? "Vault" : "Item Pile") : "Other Characters")
-					: "Player Characters",
-				itemPile: actorFlagData.enabled
-			}
-		})
-		.sort((a, b) => {
-			const weightA = (a.hasPlayerOwner ? -100000 : (a.itemPile ? -1000 : 1)) + b.label > a.label;
-			const weightB = b.hasPlayerOwner ? -100000 : (b.itemPile ? -1000 : 1) + a.label > b.label;
-			return weightA - weightB;
-		});
+	let validActors = [];
+	const selectedItem = writable();
+
+	function getValidActors(){
+		validActors = game.actors.filter(actor => {
+			return actor.isOwner
+				|| ($flagStore.allowBankerVaults && actor.getFlag("item_piles_bankers", "vaultUserId") === game.userId);
+		}).map(actor => {
+				const actorFlagData = game.itempiles.API.getActorFlagData(actor);
+				const selectable = actor.isOwner || lib.getActiveGMs().length;
+				return {
+					value: actor.uuid,
+					label: actor.name + (!selectable ? " (GM not online)" : ""),
+					hasPlayerOwner: actor.hasPlayerOwner,
+					selectable,
+					disabled: !selectable,
+					group: !actor.hasPlayerOwner
+						? (actorFlagData.enabled ? (actorFlagData?.type === "vault" ? "Vault" : "Item Pile") : "Other Characters")
+						: "Player Characters",
+					itemPile: actorFlagData.enabled,
+					class: "test"
+				}
+			})
+			.sort((a, b) => {
+				const weightA = (a.hasPlayerOwner ? -100000 : (a.itemPile ? -1000 : 1)) + (b.label > a.label);
+				const weightB = (b.hasPlayerOwner ? -100000 : (b.itemPile ? -1000 : 1)) + (a.label > b.label);
+				return weightA - weightB;
+			});
+
+		selectedItem.set(validActors.filter(actor => actor.selectable).find(actor => {
+			return actor.value === $actorUuidStore;
+		}) ?? validActors.filter(actor => actor.selectable)?.[0])
+	}
+
+	getValidActors();
 
 	const groupBy = (item) => item.group;
-
-
-	const selectedItem = writable(validActors.find(actor => {
-		return actor.value === $actorUuidStore;
-	}) ?? validActors?.[0]);
 
 	$: $actorUuidStore = $selectedItem?.value;
 	$: failedAuctions = $store.auctionData.auctions.filter(auction => auction.user === game.user && auction.expired);
 	$: wonAuctions = $store.auctionData.auctions.filter(auction => auction.won.user === game.user);
 	$: failedBids = $store.auctionData.auctions.filter(auction => auction.won && auction.won.user !== game.user);
+
+	const hookId = Hooks.on("userConnected", () => getValidActors());
+	onDestroy(() => {
+		Hooks.off("userConnected", hookId);
+	});
 
 </script>
 
@@ -83,6 +98,9 @@
 				showChevron={true}
 			>
 				<img class="actor-image" slot="prepend" src={$actorDocStore?.img}/>
+				<div slot="item" let:item class:disabled-select-entry={item.disabled}>
+					{item.label}
+				</div>
 			</Select>
 		</div>
 
@@ -106,13 +124,13 @@
 				</ReactiveButton>
 			{:else if $store.activeTab === "bids"}
 				<ReactiveButton
-					callback={async () => await store.claimAuctions(failedBids)}
+					callback={async () => await store.claimFailedBids(failedBids)}
 					disabled={!failedBids.length}>
 					Collect all
 				</ReactiveButton>
 			{:else}
 				<ReactiveButton
-					callback={async () => await store.claimAuctions(wonAuctions)}
+					callback={async () => await store.claimWonAuctions(wonAuctions)}
 					disabled={!wonAuctions.length}>
 					Collect all
 				</ReactiveButton>
@@ -187,6 +205,11 @@
     min-height: 18px;
     max-width: 18px;
     max-height: 18px;
+  }
+
+  .disabled-select-entry {
+    color: #c02828;
+	  cursor: not-allowed;
   }
 
 </style>

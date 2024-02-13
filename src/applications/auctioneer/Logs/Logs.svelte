@@ -5,30 +5,8 @@
 	import { getLogData } from "~/lib.js";
 	import { writable } from "svelte/store";
 	import AuctionLog from "~/applications/auctioneer/Logs/AuctionLog.svelte";
-	import ExpiredAuctionLog from "~/applications/auctioneer/Logs/ExpiredAuctionLog.svelte";
-	import BidLog from "~/applications/auctioneer/Logs/BidLog.svelte";
-	import BuyoutLog from "~/applications/auctioneer/Logs/BuyoutLog.svelte";
-	import ClaimedAuctionLog from "~/applications/auctioneer/Logs/ClaimedAuctionLog.svelte";
-	import CancelledAuctionLog from "~/applications/auctioneer/Logs/CancelledAuctionLog.svelte";
-	import ClaimedBidLog from "~/applications/auctioneer/Logs/ClaimedBidLog.svelte";
-	import ClaimedExpiredAuctionLog from "~/applications/auctioneer/Logs/ClaimedExpiredAuctionLog.svelte";
-	import SuccessfulExpiredAuctionLog from "~/applications/auctioneer/Logs/SuccessfulExpiredAuctionLog.svelte";
-	import ClaimedLostBidLog from "~/applications/auctioneer/Logs/ClaimedLostBidLog.svelte";
 
 	const store = getContext("store");
-
-	const componentTypes = {
-		AuctionLog,
-		ExpiredAuctionLog,
-		SuccessfulExpiredAuctionLog,
-		ClaimedAuctionLog,
-		ClaimedExpiredAuctionLog,
-		CancelledAuctionLog,
-		BidLog,
-		ClaimedBidLog,
-		ClaimedLostBidLog,
-		BuyoutLog
-	}
 
 	const auctioneerDoc = store.auctioneerDoc;
 	let allEntries = writable([]);
@@ -36,20 +14,18 @@
 		$allEntries = getLogData($auctioneerDoc);
 	}
 
+	function filterFunction(entry, part){
+		return entry.data.displayName.toLowerCase().includes(part.toLowerCase())
+			|| (entry.data?.auction?.item ?? entry.data?.item).name.toLowerCase().includes(part.toLowerCase());
+	}
+
 	const searchDebounce = foundry.utils.debounce((searchText) => {
 		allEntries.update(entries => {
 			searchText = searchText.trim();
 			for (const entry of entries) {
-				if (!searchText) {
-					entry.visible = true;
-				} else {
-					for (const part of searchText.split(" ")) {
-						entry.visible = entry.visible && (
-							entry.data.displayName.toLowerCase().includes(part.toLowerCase())
-							||
-							(entry.data?.auction?.item ?? entry.data?.item).name.toLowerCase().includes(part.toLowerCase())
-						);
-					}
+				entry.visible = true;
+				for (const part of searchText.split(" ")) {
+					entry.visible = filterFunction(entry, part) || entry.events.some(innerEntry => filterFunction(innerEntry, part));
 				}
 			}
 			return entries;
@@ -76,7 +52,7 @@
 			key="id"
 			let:data
 		>
-			<svelte:component entry={data} this={componentTypes[data.type]}/>
+			<AuctionLog entry={data}/>
 		</VirtualScroll>
 	</div>
 </div>

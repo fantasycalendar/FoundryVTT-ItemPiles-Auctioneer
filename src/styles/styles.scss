@@ -216,6 +216,11 @@
       -webkit-box-orient: vertical;
     }
 
+    .auction-entry-bid-low {
+      color: #261d00;
+      text-shadow: 0 0 8px rgba(189, 153, 11, 0.75);
+    }
+
     &.auction-won .auction-status {
       color: #0d2600;
       text-shadow: 0 0 8px rgba(0, 166, 7, 0.75);
@@ -510,12 +515,8 @@
 
 }
 
-
 .log-entry {
 
-  display: flex;
-  padding: 0.15rem 0.25rem;
-  border-bottom: var(--item-piles-auctioneer-border);
 
   span {
     font-weight: bold;
@@ -547,25 +548,6 @@
 
   .auction-claimed-log {
     color: #af6504;
-  }
-
-  .text {
-    flex: 1 0 auto;
-  }
-
-  .date {
-    flex: 0 1 auto;
-    margin-right: 0.35rem;
-    padding-right: 0.35rem;
-    border-right: var(--item-piles-auctioneer-border)
-  }
-
-  .rarity {
-    margin-left: 0.15rem;
-    font-size: 0.5rem;
-    text-shadow: var(--item-piles-auctioneer-text-shadow-weak);
-    line-height: inherit !important;
-    vertical-align: middle;
   }
 
 }

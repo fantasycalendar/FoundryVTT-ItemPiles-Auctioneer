@@ -314,7 +314,7 @@ export function createStore(auctioneer) {
 	}).filter(Boolean));
 	const selectedCategories = writable([]);
 
-	async function bidOnItem(auction, bidCurrencies) {
+	async function bidOnAuction(auction, bidCurrencies) {
 
 		if (!bidCurrencies) return false;
 
@@ -355,15 +355,17 @@ export function createStore(auctioneer) {
 			? game.itempiles.API.calculateCurrencies(bidPaymentData.basePriceString, existingBids[existingBidForAuctionIndex]?.price)
 			: bidPaymentData.basePriceString;
 
+		await lib.removeCurrencies(targetActor, currencyCost);
+
 		await game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG, existingBids);
 
-		await game.itempiles.API.removeCurrencies(targetActor, currencyCost);
+		ui.notifications.notify(`You have successfully bid on the auction for ${auction.item.name}! Check the bids tab to see all of your bids.`);
 
 		return true;
 
 	}
 
-	async function buyoutItem(auction) {
+	async function buyoutAuction(auction) {
 		if (!auction.buyoutPrice) return;
 		const targetActor = get(actorDoc);
 		const buyoutPaymentData = lib.getPriceFromData(auction.buyoutPrice, targetActor);
@@ -378,7 +380,6 @@ export function createStore(auctioneer) {
 				bid.toMigrate = true;
 			}
 		}
-		await game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG, existingBids);
 
 		const existingBuyouts = lib.getUserBuyouts();
 		existingBuyouts.push({
@@ -389,9 +390,14 @@ export function createStore(auctioneer) {
 			price: auction.buyoutPrice,
 			date: lib.evaluateFoundryTime(auctioneer)
 		});
+
+		await lib.removeCurrencies(targetActor, auction.buyoutPrice);
+		await game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BIDS_FLAG, existingBids);
 		await game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG, existingBuyouts);
 
-		return game.itempiles.API.removeCurrencies(targetActor, auction.buyoutPrice);
+		ui.notifications.notify(`You have successfully bought out the auction for ${auction.item.name}! Claim it from the winnings tab.`);
+
+		return true;
 	}
 
 	/**
@@ -554,134 +560,243 @@ export function createStore(auctioneer) {
 
 		const item = await fromUuid(data.uuid);
 		if (item?.parent && actor) {
-			await game.itempiles.API.removeItems(actor, [{
+			await lib.removeItems(actor, [{
 				_id: item.id, quantity: data.quantityPerAuction * data.numAuctions
 			}]);
 			if (data.depositPrice) {
-				await game.itempiles.API.removeCurrencies(actor, data.depositPrice);
+				await lib.removeCurrencies(actor, data.depositPrice);
 			}
 		}
+
+		ui.notifications.notify(`You have successfully created auction${data.numAuctions > 1 ? "s" : ""} for ${data.itemData.name}`);
 
 		return game.user.setFlag(CONSTANTS.MODULE_NAME, CONSTANTS.AUCTIONS_FLAG, auctions);
 
 	}
 
-	async function claimAuctions(auctions, cancelled = false) {
-		const ownedAuctions = auctions.filter(auction => auction.user === game.user && !auction.claimed);
-		const otherAuctions = auctions.filter(auction => auction.user !== game.user);
+	async function claimWonAuctions(auctions) {
+
+		const otherAuctions = auctions.filter(auction => {
+			return auction.user !== game.user && auction.won.user === game.user && !auction.won.claimed
+		});
 		const actor = get(actorDoc);
-		const flags = get(auctioneerFlags);
 		const itemsToCreate = [];
-		let successfulAuctionCurrencies = [];
-		let failedBidCurrencies = [];
 
-		if (cancelled) {
-			let content = `<p>Are you sure you want to cancel this auction?</p>`;
-			content += flags.auctionDeposit && ownedAuctions[0].depositPrice
-				? `<p>You will lose the deposit of <strong>${ownedAuctions[0].depositPrice}</strong>.</p>`
-				: '';
-			const proceed = await Dialog.confirm({
-				title: "Cancel Auction", content, options: { classes: ["dialog", "item-piles-auctioneer"] }
-			});
-			if (!proceed) return;
-		}
-
-		let ownAuctions = lib.getUserAuctions();
 		let ownBids = lib.getUserBids();
 		let ownBuyouts = lib.getUserBuyouts();
 
-		if (ownedAuctions.length) {
-			const successfulAuctions = ownedAuctions.filter(auction => auction.won);
-			const failedAuctions = ownedAuctions.filter(auction => !auction.won);
-			itemsToCreate.push(...failedAuctions.map(auction => {
-				return {
-					item: auction.item,
-					quantity: auction.quantity
-				}
-			}));
+		for (const auction of otherAuctions) {
 
-			for (const auction of successfulAuctions) {
-				successfulAuctionCurrencies.push({ price: auction.won.price, deposit: auction.depositPrice });
-			}
+			itemsToCreate.push({
+				item: auction.item.toObject(),
+				quantity: auction.quantity
+			});
 
-			ownAuctions = ownAuctions.map(existingAuction => {
-				if (existingAuction.claimed || !ownedAuctions.some(ownAuction => ownAuction.uuid === existingAuction.uuid)) {
-					return existingAuction;
+			ownBids = ownBids.map(existingBid => {
+				if (auction.uuid !== existingBid.auctionUuid || existingBid.toMigrate || existingBid.claimed) {
+					return existingBid;
+				}
+				if(auction.won.id !== existingBid.id){
+					return {
+						...existingBid,
+						claimed: false,
+						toMigrate: true
+					}
 				}
 				return {
-					...existingAuction,
+					...existingBid,
 					claimed: true,
 					toMigrate: true,
-					claimedDate: lib.evaluateFoundryTime(auctioneer),
-					cancelled
+					claimedDate: lib.evaluateFoundryTime(auctioneer)
+				}
+			});
+
+			ownBuyouts = ownBuyouts.map(existingBuyout => {
+				if (auction.uuid !== existingBuyout.auctionUuid || existingBuyout.toMigrate || existingBuyout.claimed) {
+					return existingBuyout;
+				}
+				if(auction.won.id !== existingBuyout.id){
+					return {
+						...existingBuyout,
+						claimed: false,
+						toMigrate: true
+					}
+				}
+				return {
+					...existingBuyout,
+					claimed: true,
+					toMigrate: true,
+					claimedDate: lib.evaluateFoundryTime(auctioneer)
 				}
 			});
 		}
 
-		if (otherAuctions.length) {
-
-			for (const auction of otherAuctions) {
-
-				let idToClaim;
-				if (auction.won.user === game.user) {
-					if (auction.won.claimed) return;
-					itemsToCreate.push({
-						item: auction.item.toObject(),
-						quantity: auction.quantity
-					});
-					idToClaim = auction.won.id;
-				} else {
-					const ownFailedAuctionBids = auction.bids
-						.filter(bid => bid.user === game.user && !bid.toMigrate)
-						.sort((a, b) => b.date - a.date)
-					if (ownFailedAuctionBids.length && !ownFailedAuctionBids[0].claimed) {
-						failedBidCurrencies.push(ownFailedAuctionBids[0].price)
-						idToClaim = ownFailedAuctionBids[0].id;
-					}
-				}
-
-				ownBids = ownBids.map(existingBid => {
-					if (auction.uuid !== existingBid.auctionUuid || existingBid.toMigrate) {
-						return existingBid;
-					}
-					if(idToClaim !== existingBid.id){
-						return {
-							...existingBid,
-							toMigrate: true
-						}
-					}
-					return {
-						...existingBid,
-						claimed: true,
-						toMigrate: true,
-						claimedDate: lib.evaluateFoundryTime(auctioneer)
-					}
-				});
-
-				ownBuyouts = ownBuyouts.map(existingBuyout => {
-					if (auction.uuid !== existingBuyout.auctionUuid || existingBuyout.toMigrate) {
-						return existingBuyout;
-					}
-					if(idToClaim !== existingBuyout.id){
-						return {
-							...existingBuyout,
-							toMigrate: true
-						}
-					}
-					return {
-						...existingBuyout,
-						claimed: true,
-						toMigrate: true,
-						claimedDate: lib.evaluateFoundryTime(auctioneer)
-					}
-				});
+		if (actor && itemsToCreate.length) {
+			await lib.addItems(actor, itemsToCreate);
+			if(itemsToCreate.length > 1){
+				ui.notifications.info(`${itemsToCreate[0].name} was added to ${actor.name}`);
+			}else {
+				ui.notifications.info(`${itemsToCreate.length} items were added to ${actor.name}`);
 			}
 		}
 
-		if (actor && itemsToCreate.length) {
-			await game.itempiles.API.addItems(actor, itemsToCreate);
+		return game.user.update({
+			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.BIDS_FLAG}`]: ownBids,
+			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.BUYOUTS_FLAG}`]: ownBuyouts
+		});
+
+	}
+
+	async function claimFailedBids(auctions) {
+
+		const otherAuctions = auctions.filter(auction => {
+			return auction.user !== game.user && auction.won.user !== game.user
+		});
+		const actor = get(actorDoc);
+		const failedBidCurrencies = [];
+
+		let ownBids = lib.getUserBids();
+		let ownBuyouts = lib.getUserBuyouts();
+
+		for (const auction of otherAuctions) {
+
+			const ownFailedAuctionBids = auction.bids
+				.filter(bid => bid.user === game.user && !bid.toMigrate)
+				.sort((a, b) => b.date - a.date)
+
+			let idToClaim = null;
+			if (ownFailedAuctionBids.length && !ownFailedAuctionBids[0].claimed) {
+				failedBidCurrencies.push(ownFailedAuctionBids[0].price)
+				idToClaim = ownFailedAuctionBids[0].id;
+			}
+
+			ownBids = ownBids.map(existingBid => {
+				if (auction.uuid !== existingBid.auctionUuid || existingBid.toMigrate || existingBid.claimed) {
+					return existingBid;
+				}
+				if(idToClaim !== existingBid.id){
+					return {
+						...existingBid,
+						claimed: false,
+						toMigrate: true
+					}
+				}
+				return {
+					...existingBid,
+					claimed: true,
+					toMigrate: true,
+					claimedDate: lib.evaluateFoundryTime(auctioneer)
+				}
+			});
+
+			ownBuyouts = ownBuyouts.map(existingBuyout => {
+				if (auction.uuid !== existingBuyout.auctionUuid || existingBuyout.toMigrate || existingBuyout.claimed) {
+					return existingBuyout;
+				}
+				if(idToClaim !== existingBuyout.id){
+					return {
+						...existingBuyout,
+						claimed: false,
+						toMigrate: true
+					}
+				}
+				return {
+					...existingBuyout,
+					claimed: true,
+					toMigrate: true,
+					claimedDate: lib.evaluateFoundryTime(auctioneer)
+				}
+			});
 		}
-		if (actor && (successfulAuctionCurrencies.length || failedBidCurrencies.length)) {
+
+		if (actor && failedBidCurrencies.length) {
+			let totalCurrenciesToAdd = "";
+			for (const failedBidCurrency of failedBidCurrencies) {
+				totalCurrenciesToAdd = totalCurrenciesToAdd
+					? game.itempiles.API.calculateCurrencies(totalCurrenciesToAdd, failedBidCurrency, false)
+					: failedBidCurrency;
+			}
+			await lib.addCurrencies(actor, totalCurrenciesToAdd);
+			ui.notifications.info(`${totalCurrenciesToAdd} was added to ${actor.name}`);
+		}
+
+		return game.user.update({
+			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.BIDS_FLAG}`]: ownBids,
+			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.BUYOUTS_FLAG}`]: ownBuyouts
+		});
+
+	}
+
+	async function claimAuctions(auctions) {
+		const failedAuctions = auctions.filter(auction => auction.user === game.user && !auction.claimed && !auction.toMigrate && !auction.won);
+		const successfulAuctions = auctions.filter(auction => auction.user === game.user && !auction.claimed && !auction.toMigrate && auction.won);
+		await claimFailedAuctions(failedAuctions)
+		return claimSuccessfulAuctions(successfulAuctions);
+	}
+
+	async function claimFailedAuctions(auctions) {
+
+		const actor = get(actorDoc);
+
+		const failedAuctions = auctions.filter(auction => auction.user === game.user && !auction.claimed && !auction.toMigrate && !auction.won);
+		const itemsToCreate = failedAuctions.map(auction => {
+			return {
+				item: auction.item,
+				quantity: auction.quantity
+			}
+		});
+
+		const ownAuctions = lib.getUserAuctions().map(existingAuction => {
+			if (existingAuction.claimed || !failedAuctions.some(failedAuction => failedAuction.uuid === existingAuction.uuid)) {
+				return existingAuction;
+			}
+			return {
+				...existingAuction,
+				claimed: true,
+				toMigrate: true,
+				claimedDate: lib.evaluateFoundryTime(auctioneer)
+			}
+		});
+
+		if (actor && itemsToCreate.length) {
+			await lib.addItems(actor, itemsToCreate);
+			if(itemsToCreate.length > 1){
+				ui.notifications.info(`${itemsToCreate[0].name} was added to ${actor.name}`);
+			}else {
+				ui.notifications.info(`${itemsToCreate.length} items were added to ${actor.name}`);
+			}
+		}
+
+		return game.user.update({
+			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.AUCTIONS_FLAG}`]: ownAuctions
+		});
+
+	}
+
+	async function claimSuccessfulAuctions(auctions) {
+
+		const successfulAuctions = auctions.filter(auction => auction.user === game.user && !auction.claimed && !auction.toMigrate && auction.won);
+
+		const actor = get(actorDoc);
+		const flags = get(auctioneerFlags);
+		const successfulAuctionCurrencies = successfulAuctions.map(auction => ({
+			price: auction.won.price,
+			deposit: auction.depositPrice
+		}));
+
+		const ownAuctions = lib.getUserAuctions().map(existingAuction => {
+			if (existingAuction.claimed || !successfulAuctions.some(successfulAuction => successfulAuction.uuid === existingAuction.uuid)) {
+				return existingAuction;
+			}
+			return {
+				...existingAuction,
+				claimed: true,
+				toMigrate: true,
+				claimedDate: lib.evaluateFoundryTime(auctioneer)
+			}
+		});
+
+		if (actor && successfulAuctionCurrencies.length) {
 			let totalFee = "";
 			let totalCurrenciesToAdd = "";
 			const auctionFee = Math.max(0, flags.auctionFee ?? 0);
@@ -704,13 +819,7 @@ export function createStore(auctioneer) {
 				}
 			}
 
-			for (const failedBidCurrency of failedBidCurrencies) {
-				totalCurrenciesToAdd = totalCurrenciesToAdd
-					? game.itempiles.API.calculateCurrencies(totalCurrenciesToAdd, failedBidCurrency, false)
-					: failedBidCurrency;
-			}
-
-			await game.itempiles.API.addCurrencies(actor, totalCurrenciesToAdd);
+			await lib.addCurrencies(actor, totalCurrenciesToAdd);
 			let message = `${totalCurrenciesToAdd} was added to ${actor.name}`;
 			if (totalFee) {
 				message += ` - ${totalFee} was claimed as auction fees.`;
@@ -719,9 +828,57 @@ export function createStore(auctioneer) {
 		}
 
 		return game.user.update({
+			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.AUCTIONS_FLAG}`]: ownAuctions
+		});
+
+	}
+
+	async function cancelAuctions(auctions) {
+
+		const auctionsToCancel = auctions.filter(auction => auction.user === game.user && !auction.claimed && !auction.toMigrate && !auction.won);
+		const actor = get(actorDoc);
+		const flags = get(auctioneerFlags);
+
+		let content = `<p>Are you sure you want to cancel this auction?</p>`;
+		content += flags.auctionDeposit && auctionsToCancel[0].depositPrice
+			? `<p>You will lose the deposit of <strong>${auctionsToCancel[0].depositPrice}</strong>.</p>`
+			: '';
+		const proceed = await Dialog.confirm({
+			title: "Cancel Auction", content, options: { classes: ["dialog", "item-piles-auctioneer"] }
+		});
+		if (!proceed) return;
+
+		const itemsToCreate = auctionsToCancel.map(auction => {
+			return {
+				item: auction.item,
+				quantity: auction.quantity
+			}
+		});
+
+		const ownAuctions = lib.getUserAuctions().map(existingAuction => {
+			if (existingAuction.claimed || !auctionsToCancel.some(cancelledAuction => cancelledAuction.uuid === existingAuction.uuid)) {
+				return existingAuction;
+			}
+			return {
+				...existingAuction,
+				claimed: true,
+				toMigrate: true,
+				cancelled: true,
+				claimedDate: lib.evaluateFoundryTime(auctioneer)
+			}
+		});
+
+		if (actor && itemsToCreate.length) {
+			await lib.addItems(actor, itemsToCreate);
+			if(itemsToCreate.length > 1){
+				ui.notifications.info(`Auction cancelled - ${itemsToCreate[0].name} was added to ${actor.name}`);
+			}else {
+				ui.notifications.info(`Auction cancelled - ${itemsToCreate.length} items were added to ${actor.name}`);
+			}
+		}
+
+		return game.user.update({
 			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.AUCTIONS_FLAG}`]: ownAuctions,
-			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.BIDS_FLAG}`]: ownBids,
-			[`flags.${CONSTANTS.MODULE_NAME}.${CONSTANTS.BUYOUTS_FLAG}`]: ownBuyouts
 		});
 
 	}
@@ -731,6 +888,8 @@ export function createStore(auctioneer) {
 		const indexToRefresh = existingAuctions.findIndex(existingAuction => existingAuction.uuid === auction.uuid);
 		const duplicatedAuction = foundry.utils.deepClone(existingAuctions[indexToRefresh]);
 		existingAuctions[indexToRefresh].claimed = true;
+		duplicatedAuction.id = randomID();
+		duplicatedAuction.uuid = `${duplicatedAuction.id}-${auctioneer.uuid}-${game.user.id}`
 		duplicatedAuction.date = lib.evaluateFoundryTime(auctioneer);
 		duplicatedAuction.expiryDate = lib.evaluateFoundryTime(auctioneer, duplicatedAuction.duration);
 		const actor = get(actorDoc);
@@ -768,7 +927,7 @@ export function createStore(auctioneer) {
 					});
 					if (!proceed) return;
 					if (!ignoreDeposit) {
-						await game.itempiles.API.removeCurrencies(actor, duplicatedAuction.depositPrice);
+						await lib.removeCurrencies(actor, duplicatedAuction.depositPrice);
 					}
 				} else {
 					const proceed = await Dialog.confirm({
@@ -777,7 +936,7 @@ export function createStore(auctioneer) {
 						options: { classes: ["dialog", "item-piles-auctioneer"] }
 					});
 					if (!proceed) return;
-					await game.itempiles.API.removeCurrencies(actor, duplicatedAuction.depositPrice);
+					await lib.removeCurrencies(actor, duplicatedAuction.depositPrice);
 				}
 			}
 		}
@@ -792,8 +951,8 @@ export function createStore(auctioneer) {
 		subscribe,
 		unsubscribe,
 
-		auctionItemStore,
 		onDropData,
+		auctionItemStore,
 		newAuctionStore,
 
 		searchClicked,
@@ -801,11 +960,16 @@ export function createStore(auctioneer) {
 		incrementPage,
 		setSortBy,
 		entryClicked,
-		bidOnItem,
-		buyoutItem,
+		bidOnAuction,
+		buyoutAuction,
 
 		createAuctions,
 		claimAuctions,
+		claimSuccessfulAuctions,
+		claimFailedAuctions,
+		claimFailedBids,
+		claimWonAuctions,
+		cancelAuctions,
 		relistAuction,
 
 		auctioneer,

@@ -1,7 +1,6 @@
 <script>
 
 	import { getItemColorElement, turnCurrenciesIntoString } from "~/lib.js";
-	import LogEntry from "~/applications/auctioneer/Logs/LogEntry.svelte";
 
 	export let entry;
 
@@ -13,11 +12,9 @@
 
 </script>
 
-<LogEntry date={entry.date}>
-	<div>
-		<span>{data.displayName}</span> fully <span class="auction-buyout-log">bought out</span>
-		the {@html getItemColorElement(data.auction.item)}<span
-	>{data.auction.item.name}</span> {quantity} from
-		<span>{data.auction.displayName}</span> for <span>{price}</span>
-	</div>
-</LogEntry>
+<div>
+	<span>{data.displayName}</span> fully <span class="auction-buyout-log">bought out</span>
+	the {@html getItemColorElement(data.auction.item)}<span
+>{data.auction.item.name}</span> {quantity} from
+	<span>{data.auction.displayName}</span> for <span>{price}</span>
+</div>

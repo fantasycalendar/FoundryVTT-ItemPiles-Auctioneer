@@ -16,7 +16,6 @@ export function auctioneerRendered(itemPile) {
 
 }
 
-
 export function getActiveApps(id, single = false) {
 	const apps = Object.values(ui.windows).filter(app => {
 		return app.id.startsWith(id) && app._state > Application.RENDER_STATES.CLOSED;
@@ -27,6 +26,96 @@ export function getActiveApps(id, single = false) {
 	return apps;
 }
 
+export async function addItems(actor, itemsToAdd) {
+
+	if (getActiveGMs().length) {
+		return game.itempiles.API.addItems(actor, itemsToAdd);
+	}
+
+	const transaction = new game.itempiles.API.Transaction(actor);
+	await transaction.appendItemChanges(itemsToAdd);
+	transaction.prepare();
+	return transaction.commit();
+
+}
+
+export async function removeItems(actor, itemsToRemove) {
+
+	if (getActiveGMs().length) {
+		return game.itempiles.API.removeItems(actor, itemsToRemove);
+	}
+
+	const transaction = new game.itempiles.API.Transaction(actor);
+	await transaction.appendItemChanges(itemsToRemove, { remove: true });
+	transaction.prepare();
+	return transaction.commit();
+
+}
+
+export async function addCurrencies(actor, totalCurrenciesToAdd) {
+
+	if (getActiveGMs().length) {
+		return game.itempiles.API.addCurrencies(actor, totalCurrenciesToAdd);
+	}
+
+	const currenciesToAdd = game.itempiles.API.getCurrenciesFromString(totalCurrenciesToAdd).currencies
+		.filter(currency => isRealNumber(currency.quantity) && currency.quantity > 0);
+
+	const itemsToAdd = currenciesToAdd.filter(currency => currency.type === "item")
+		.map(currency => ({ item: currency.data.item, quantity: currency.quantity }));
+
+	const attributesToAdd = currenciesToAdd.filter(currency => currency.type === "attribute")
+		.map(currency => ({ path: currency.data.path, quantity: currency.quantity }));
+
+	const transaction = new game.itempiles.API.Transaction(actor);
+	await transaction.appendItemChanges(itemsToAdd, { type: "currency" });
+	await transaction.appendActorChanges(attributesToAdd, { type: "currency" });
+	transaction.prepare();
+	return transaction.commit();
+
+}
+
+export async function removeCurrencies(actor, totalCurrenciesToRemove) {
+
+	if (getActiveGMs().length) {
+		return game.itempiles.API.removeCurrencies(actor, totalCurrenciesToRemove);
+	}
+
+	const priceData = game.itempiles.API.getCurrenciesFromString(totalCurrenciesToRemove);
+	const secondaryPrices = priceData.currencies.filter(currency => currency.secondary && currency.quantity);
+	const overallCost = priceData.overallCost;
+
+	const paymentData = game.itempiles.API.getPaymentData({
+		purchaseData: [{ cost: overallCost, quantity: 1, secondaryPrices }], buyer: actor
+	});
+
+	const itemsToRemove = paymentData.finalPrices.filter(currency => currency.type === "item" && currency.quantity)
+		.map(currency => ({ item: currency.data.item, quantity: currency.quantity }));
+
+	const attributesToRemove = paymentData.finalPrices.filter(currency => currency.type === "attribute" && currency.quantity)
+		.map(currency => ({ path: currency.data.path, quantity: currency.quantity }));
+
+	const itemsToAdd = paymentData.buyerChange.filter(currency => currency.type === "item" && currency.quantity)
+		.map(currency => ({ item: currency.data.item, quantity: currency.quantity }));
+
+	const attributesToAdd = paymentData.buyerChange.filter(currency => currency.type === "attribute" && currency.quantity)
+		.map(currency => ({ path: currency.data.path, quantity: currency.quantity }));
+
+	const transaction = new game.itempiles.API.Transaction(actor);
+	await transaction.appendItemChanges(itemsToRemove, { type: "currency", remove: true });
+	await transaction.appendActorChanges(attributesToRemove, { type: "currency", remove: true });
+	await transaction.appendItemChanges(itemsToAdd, { type: "currency" });
+	await transaction.appendActorChanges(attributesToAdd, { type: "currency" });
+	transaction.prepare();
+	return transaction.commit();
+
+}
+
+export function isRealNumber(inNumber) {
+	return !isNaN(inNumber)
+		&& typeof inNumber === "number"
+		&& isFinite(inNumber);
+}
 
 export function abbreviateNumbers(number, decPlaces = 2) {
 
@@ -64,7 +153,6 @@ export function abbreviateNumbers(number, decPlaces = 2) {
 
 	return number
 }
-
 
 const relativeDateStrings = [
 	[0, "Auction Failed"],
@@ -180,7 +268,6 @@ export function getAuctioneerActorFlags(actor) {
 		game.itempiles.API.getActorFlagData(actor)
 	);
 }
-
 
 export function getCurrencies(actor) {
 
@@ -445,7 +532,7 @@ export function getAuctionMigrationData(auctioneer) {
 
 }
 
-function _addToLog(acc, condition, data) {
+function _addToLog(acc, data, condition = true) {
 	if (!condition || acc[data.id]) return;
 	acc[data.id] = data;
 }
@@ -459,113 +546,158 @@ export function getLogData(auctioneer) {
 	const auctionLogs = auctions
 		.reduce((acc, auction, index) => {
 
-			_addToLog(acc, auction.cancelled && auction.claimed && currentDatetime >= auction.claimedDate, {
-				data: auction,
-				type: "CancelledAuctionLog",
-				id: auction.id + "-cancelled",
-				date: auction.claimedDate,
-				visible: true,
-				priority: index
-			});
+			const events = [];
 
-			_addToLog(acc, !auction.cancelled && auction.expired && auction.claimed && !auction.won, {
-				data: auction,
-				type: "ClaimedExpiredAuctionLog",
-				id: auction.id + "-claimed-expired",
-				date: auction.claimedDate,
-				visible: true,
-				priority: index + 1
-			});
+			// Cancelled auction
+			// if auction is cancelled, and it is claimed, and it was claimed in the past
+			if (auction.cancelled && auction.claimed && currentDatetime >= auction.claimedDate) {
+				events.push({
+					data: auction,
+					type: "CancelledAuctionLog",
+					id: auction.id + "-cancelled",
+					date: auction.claimedDate
+				})
+			}
 
-			_addToLog(acc, !auction.cancelled && auction.expired && auction.claimed && auction.won && currentDatetime >= auction.claimedDate, {
-				data: auction,
-				type: "ClaimedAuctionLog",
-				id: auction.id + "-claimed",
-				date: auction.claimedDate,
-				visible: true,
-				priority: index + 2
-			});
+			// Claimed expired auction
+			// If the auction wasn't cancelled, and it is expired, and it is claimed, and it was not won, and it was claimed in the past
+			if (!auction.cancelled && auction.expired && auction.claimed && !auction.won && currentDatetime >= auction.claimedDate) {
+				events.push({
+					data: auction,
+					type: "ClaimedExpiredAuctionLog",
+					id: auction.id + "-claimed-expired",
+					date: auction.claimedDate
+				});
+			}
 
-			_addToLog(acc, !auction.cancelled && auction.expired && !auction.won, {
-				data: auction,
-				type: "ExpiredAuctionLog",
-				id: auction.id + "-expired",
-				date: auction.expiryDate,
-				visible: true,
-				priority: index + 3
-			});
+			// Claimed successful auction
+			// If the auction wasn't cancelled, and it is expired, and it is claimed, and it was won, and it was claimed in the past
+			if (!auction.cancelled && auction.expired && auction.claimed && auction.won && currentDatetime >= auction.claimedDate) {
+				events.push({
+					data: auction,
+					type: "ClaimedAuctionLog",
+					id: auction.id + "-claimed",
+					date: auction.claimedDate
+				});
+			}
 
-			_addToLog(acc, !auction.cancelled && auction.expired && auction.won, {
-				data: auction,
-				type: "SuccessfulExpiredAuctionLog",
-				id: auction.id + "-successful-expired",
-				date: auction.expiryDate,
-				visible: true,
-				priority: index + 4
-			});
+			// Expired failed auction
+			// If the auction wasn't cancelled, and it is expired, and it wasn't won
+			if (!auction.cancelled && auction.expired && !auction.won) {
+				events.push({
+					data: auction,
+					type: "ExpiredAuctionLog",
+					id: auction.id + "-expired",
+					date: auction.expiryDate
+				});
+			}
 
-			_addToLog(acc, true, {
+			// Expired successful auction
+			// If the auction wasn't cancelled, and it is expired, and it was won by a bid
+			if (!auction.cancelled && auction.expired && auction.won && auction.won.type === "bid") {
+				events.push({
+					data: auction,
+					type: "SuccessfulExpiredAuctionLog",
+					id: auction.id + "-successful-expired",
+					date: auction.expiryDate
+				});
+			}
+
+			// Buyout successful auction
+			// If the auction wasn't cancelled, and it was won by a buyout
+			if (!auction.cancelled && auction.won && auction.won.type === "buyout") {
+				events.push({
+					data: auction,
+					type: "SuccessfulBuyoutAuctionLog",
+					id: auction.id + "-successful-buyout",
+					date: auction.won.date
+				});
+			}
+
+			events.push({
 				data: auction,
-				type: "AuctionLog",
+				type: "AuctionCreatedLog",
+				id: auction.id + "-created",
+				date: auction.date,
+				index
+			})
+
+			// Created auction
+			_addToLog(acc, {
+				data: auction,
 				id: auction.id,
 				date: auction.date,
 				visible: true,
-				priority: index + 5
+				index,
+				events
 			});
-
 			return acc;
 		}, {});
 
-	const bidLogs = bids.reduce((acc, bid, index) => {
-		_addToLog(acc, bid.claimed && currentDatetime >= bid.claimedDate && bid.auction.won === bid, {
-			data: bid,
-			type: "ClaimedBidLog",
-			id: bid.id + "-claimed",
-			date: bid.claimedDate,
-			visible: true,
-			priority: index
-		});
 
-		_addToLog(acc, bid.claimed && currentDatetime >= bid.claimedDate && bid.auction.won !== bid, {
-			data: bid,
-			type: "ClaimedLostBidLog",
-			id: bid.id + "-claimed-lost",
-			date: bid.claimedDate,
-			visible: true,
-			priority: index + 1
-		});
+	for (const bid of bids) {
 
-		_addToLog(acc, true, {
+		// Claimed won bid
+		// The bid is claimed, and it was claimed in the past, and the auction's winning bid is this bid
+		if (bid.claimed && currentDatetime >= bid.claimedDate && bid.auction.won === bid && !bid.auction.cancelled) {
+			auctionLogs[bid.auction.id].events.push({
+				data: bid,
+				type: "ClaimedBidLog",
+				id: bid.id + "-claimed",
+				date: bid.claimedDate
+			})
+		}
+
+		// Claimed failed bid
+		// The bid is claimed, and it was claimed in the past, and the auction's winning bid is NOT this bid
+		if (bid.claimed && currentDatetime >= bid.claimedDate && (bid.auction.cancelled || bid.auction.won !== bid)) {
+			auctionLogs[bid.auction.id].events.push({
+				data: bid,
+				type: "ClaimedLostBidLog",
+				id: bid.id + "-lost-claimed",
+				date: bid.claimedDate
+			})
+		}
+
+		// Created or updated bid
+		auctionLogs[bid.auction.id].events.push({
 			data: bid,
-			type: "BidLog",
+			type: bid.previousBid ? "BidUpdateLog" : "BidLog",
 			id: bid.id,
-			date: bid.date,
-			visible: true,
-			priority: index + 2
-		});
+			date: bid.date
+		})
+	}
 
-		return acc;
-	}, {});
+	for (const buyout of buyouts) {
 
-	const buyoutLogs = buyouts.reduce((acc, buyout, index) => {
-		_addToLog(acc, true, {
+		// Claimed won buyout
+		// The buyout is claimed, and it was claimed in the past
+		if (buyout.claimed && currentDatetime > buyout.claimed) {
+			auctionLogs[buyout.auction.id].events.push({
+				data: buyout,
+				type: "ClaimedBuyoutLog",
+				id: buyout.id + "-claimed",
+				date: buyout.claimedDate
+			});
+		}
+
+		// Created buyout
+		auctionLogs[buyout.auction.id].events.push({
 			data: buyout,
 			type: "BuyoutLog",
 			id: buyout.id,
-			date: buyout.date,
-			visible: true,
-			priority: index
+			date: buyout.date
 		});
 
-		return acc;
-	}, {});
+	}
 
 	return Object.values(auctionLogs)
-		.concat(Object.values(bidLogs))
-		.concat(Object.values(buyoutLogs))
-		.map((entry, index) => ({
-			...entry, index
-		}))
+		.map(auction => {
+			auction.events.sort((a, b) => {
+				return b.date - a.date;
+			});
+			return auction;
+		})
 		.sort((a, b) => {
 			return b.date === a.date
 				? (a.priority === b.priority ? b.index - a.index : a.priority - b.priority)
@@ -594,20 +726,20 @@ export function getAuctioneerData(auctioneer) {
 	const bids = {};
 	const buyouts = {};
 
-	const { auctionFlags, bidFlags, buyoutFlags } = game.users.reduce((acc, user) => {
+	const { userAuctionFlags, userBuyoutFlags, userBidFlags } = game.users.reduce((acc, user) => {
 		const userAuctions = getUserAuctions(user);
-		const userBids = getUserBids(user);
 		const userBuyouts = getUserBuyouts(user);
+		const userBids = getUserBids(user);
 		return {
-			auctionFlags: acc.auctionFlags.concat(userAuctions),
-			bidFlags: acc.bidFlags.concat(userBids),
-			buyoutFlags: acc.buyoutFlags.concat(userBuyouts),
+			userAuctionFlags: acc.userAuctionFlags.concat(userAuctions),
+			userBuyoutFlags: acc.userBuyoutFlags.concat(userBuyouts),
+			userBidFlags: acc.userBidFlags.concat(userBids),
 		}
-	}, { auctionFlags: [], bidFlags: [], buyoutFlags: [] });
+	}, { userAuctionFlags: [], userBuyoutFlags: [], userBidFlags: [] });
 
-	auctionFlags.sort((a, b) => b.date - a.date);
-	bidFlags.sort((a, b) => b.date - a.date);
-	buyoutFlags.sort((a, b) => b.date - a.date);
+	userAuctionFlags.sort((a, b) => b.date - a.date);
+	userBuyoutFlags.sort((a, b) => b.date - a.date);
+	userBidFlags.sort((a, b) => b.date - a.date);
 
 	const auctioneerAuctionsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.AUCTIONS_FLAG) ?? [];
 	const auctioneerBuyoutsData = auctioneer.getFlag(CONSTANTS.MODULE_NAME, CONSTANTS.BUYOUTS_FLAG) ?? [];
@@ -621,7 +753,7 @@ export function getAuctioneerData(auctioneer) {
 		auctions[auction.uuid] = auction;
 	});
 
-	auctionFlags.filter(source => {
+	userAuctionFlags.filter(source => {
 		return source.uuid.endsWith(auctioneer.uuid + "-" + source.userId);
 	}).forEach(source => {
 		const auction = makeAuction(auctioneer, source, flags);
@@ -637,7 +769,7 @@ export function getAuctioneerData(auctioneer) {
 		buyouts[buyout.id] = buyout;
 	});
 
-	buyoutFlags.filter(source => {
+	userBuyoutFlags.filter(source => {
 		return source.auctionUuid.includes("-" + auctioneer.uuid + "-") && auctions[source.auctionUuid];
 	}).forEach(source => {
 		const buyout = makeBuyout(auctioneer, source, auctions, flags);
@@ -655,7 +787,7 @@ export function getAuctioneerData(auctioneer) {
 		bids[bid.id] = bid;
 	});
 
-	bidFlags.filter(source => {
+	userBidFlags.filter(source => {
 		return source.auctionUuid.includes("-" + auctioneer.uuid + "-")
 			&& auctions[source.auctionUuid]
 			&& !auctions[source.auctionUuid].won;
@@ -669,7 +801,20 @@ export function getAuctioneerData(auctioneer) {
 
 		auction.bids.sort((a, b) => b.priceData.totalPrice - a.priceData.totalPrice);
 
-		const ownedBids = auction.bids.filter(bid => bid.user === game.user && !bid.claimed);
+		const userBids = {};
+		for (let i = 0; i < auction.bids.length; i++) {
+			const bid = auction.bids[i];
+			if(!userBids[bid.user.id]) userBids[bid.user.id] = [];
+			userBids[bid.user.id].push(bid)
+		}
+
+		for(const [_, bids] of Object.entries(userBids)){
+			for (let i = 0; i < bids.length-1; i++) {
+				bids[i].previousBid = bids[i+1];
+			}
+		}
+
+		const ownedBids = auction.bids.filter(bid => bid.user === game.user);
 
 		auction.bidPriceData = auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE || auction.user === game.user
 			? (auction.bids.length ? auction.bids[0].priceData : auction.startPriceData)
@@ -703,15 +848,16 @@ export function getAuctioneerData(auctioneer) {
 					label: "Cancelled",
 					value: Infinity
 				}
-			}
-			auction.highBidder = auction.bids?.[0]?.displayName;
-			if (auction.expired && auction.bids.length) {
-				if (!auction.reservePrice || !isPriceHigherThan(auction.bids[0].priceData, auction.reservePriceData)) {
-					auction.won = auction.bids[0];
-					if (auction.user === game.user) {
-						auction.timeLeft = {
-							label: "Auction Succeeded",
-							value: Infinity
+			} else {
+				auction.highBidder = auction.bids?.[0]?.displayName;
+				if (auction.expired && auction.bids.length) {
+					if (!auction.reservePrice || !isPriceHigherThan(auction.bids[0].priceData, auction.reservePriceData)) {
+						auction.won = auction.bids[0];
+						if (auction.user === game.user) {
+							auction.timeLeft = {
+								label: "Auction Succeeded",
+								value: Infinity
+							}
 						}
 					}
 				}
@@ -722,12 +868,12 @@ export function getAuctioneerData(auctioneer) {
 			const highestOwnedBid = ownedBids[0];
 			auction.highestOwnedBid = highestOwnedBid;
 			const bidIndex = auction.bids.indexOf(highestOwnedBid);
-			if (auction.cancelled || (auction.expired && auction.won !== highestOwnedBid)){
+			if (auction.cancelled || (auction.expired && auction.won !== highestOwnedBid)) {
 				highestOwnedBid.bidStatus = {
 					value: Math.min(bidIndex, 3),
 					label: "Lost bid"
 				}
-			}else if (auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE) {
+			} else if (auction.bidVisibility === CONSTANTS.VISIBILITY_KEYS.VISIBLE) {
 				let label = "Low Bid";
 				if (bidIndex === 0) {
 					label = "Highest Bid"
@@ -774,7 +920,7 @@ export function makeAuction(auctioneer, source, flags) {
 	auction.claimedDate = auction._source.claimedDate;
 	auction.expiryDate = auction._source.expiryDate;
 	const currentTime = evaluateFoundryTime(auctioneer);
-	auction.expired = currentTime >= auction._source.expiryDate && (!auction._source.claimedDate || auction._source.claimedDate >= auction._source.expiryDate);
+	auction.expired = currentTime >= auction._source.expiryDate;
 	auction.timeLeft = dateNumberToRelativeString(auctioneer, auction._source.expiryDate);
 	auction.quantity = auction._source.quantity;
 	auction.bidVisibility = auction._source.bidVisibility;
@@ -817,7 +963,11 @@ export function makeBuyout(auctioneer, source, auctions, flags) {
 	buyout.toMigrate = buyout._source.toMigrate;
 	buyout.auctionUuid = buyout._source.auctionUuid;
 	buyout.auction = auctions[buyout._source.auctionUuid];
-	buyout.auction.won = buyout;
+	if (buyout.auction) {
+		buyout.auction.won = buyout;
+	} else {
+		console.warn(`Could not find auction for buyout ${buyout._source.id} and auction ${buyout._source.auctionUuid} on user ${buyout.user.name}!`);
+	}
 	buyout.displayName = flags.showActorName
 		? buyout.actor?.name ?? buyout.user?.name ?? "Unknown"
 		: buyout.user?.name ?? buyout.actor?.name ?? "Unknown";
@@ -849,6 +999,7 @@ export function makeBid(auctioneer, source, auctions, flags) {
 	bid.displayName = flags.showActorName
 		? bid.actor?.name ?? bid.user?.name ?? "Unknown"
 		: bid.user?.name ?? bid.actor?.name ?? "Unknown";
+	bid.previousBid = false;
 	return bid;
 }
 

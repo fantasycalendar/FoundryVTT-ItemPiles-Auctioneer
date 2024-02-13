@@ -65,18 +65,18 @@
 			                disabled={!auction.expired && !auction.won}>
 				Collect
 			</ReactiveButton>
-			<ReactiveButton callback={() => store.claimAuctions([auction], true)}
+			<ReactiveButton callback={() => store.cancelAuctions([auction])}
 			                disabled={auction.expired || auction.won}>
 				Cancel
 			</ReactiveButton>
 		{:else if $store.activeTab === "wins"}
-			<ReactiveButton callback={() => store.claimAuctions([auction])} completelyDisable
+			<ReactiveButton callback={() => store.claimWonAuctions([auction])} completelyDisable
 			                disabled={!auction.won || auction.won.user !== game.user}>
 				Collect item
 			</ReactiveButton>
 		{:else}
 			{#if auction.expired || auction.cancelled}
-				<ReactiveButton callback={() => store.claimAuctions([auction])} completelyDisable
+				<ReactiveButton callback={() => store.claimSuccessfulAuctions([auction])} completelyDisable
 				                disabled={!auction.expired && !auction.cancelled}>
 					Collect currency
 				</ReactiveButton>
@@ -85,7 +85,7 @@
 					<ReactiveButton
 						disabled={(auction.user === game.user && !game.user.isGM) || auction.actorUuid === $actorUuidStore || auction.expired}
 						callback={() => {
-						store.bidOnItem(auction, currencyString).then((result) => {
+						store.bidOnAuction(auction, currencyString).then((result) => {
 							if(!result) return;
 							clearCurrencyStore();
 						});
@@ -97,7 +97,7 @@
 					<ReactiveButton
 						disabled={(auction.user === game.user && !game.user.isGM) || auction.actorUuid === $actorUuidStore || auction.expired || !auction.buyoutPrice}
 						callback={() => {
-						store.buyoutItem(auction).then((result) => {
+						store.buyoutAuction(auction).then((result) => {
 							if(!result) return;
 							clearCurrencyStore();
 						});

@@ -13,6 +13,6 @@
 
 <div>
 	<span>{data.won.displayName}</span> <span class="auction-successful-bid-log">won</span> the auction
-	for {@html getItemColorElement(data.item)}<span>{data.item.name}</span>{quantity} for <span>{price}</span> from
-	<span>{data.displayName}</span>
+	for {@html getItemColorElement(data.item)}<span>{data.item.name}</span>{quantity} for <span>{price}</span> via
+	<span>buyout</span> from <span>{data.displayName}</span>
 </div>
