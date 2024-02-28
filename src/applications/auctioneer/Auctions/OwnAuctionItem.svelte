@@ -40,7 +40,7 @@
 					<div class="item-price">
 						{#each auction.bidPriceData.currencies as currency (currency.id)}
 							<div class="price">
-								<span>{currency.cost + 'catioro'}</span>
+								<span>{currency.cost}</span>
 								<img src={currency.img}>
 							</div>
 						{/each}
@@ -50,7 +50,7 @@
 					<div class="item-price">
 						{#each auction.reservePriceData.currencies as currency (currency.id)}
 							<div class="price">
-								<span>{currency.cost} catioro</span>
+								<span>{currency.cost}</span>
 								<img src={currency.img}>
 							</div>
 						{/each}
