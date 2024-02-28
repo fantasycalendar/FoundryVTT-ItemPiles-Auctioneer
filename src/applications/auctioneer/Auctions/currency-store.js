@@ -29,7 +29,6 @@ export default function CurrencyStore(store) {
 
 	function exportCurrencies() {
 		const data = get(currencyStore);
-		console.log('EXPORTCURRENCY', data);
 		return data.activeCurrencies;
 	}
 

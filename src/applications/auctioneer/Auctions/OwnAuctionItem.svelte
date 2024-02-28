@@ -7,7 +7,6 @@
 
 	export let auction;
 
-	console.log('auctionFromSvelte', auction);
 
 	const store = getContext("store");
 

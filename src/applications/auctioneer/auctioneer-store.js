@@ -315,15 +315,12 @@ export function createStore(auctioneer) {
 	const selectedCategories = writable([]);
 
 	async function bidOnAuction(auction, bidCurrencies) {
-		console.log('auction', auction)
-		console.log('bidCurrencies', bidCurrencies);
 
 		if (!bidCurrencies) return false;
 
 		const targetActor = get(actorDoc);
 
 		const bidPaymentData = lib.getPriceFromData(bidCurrencies, targetActor);
-		console.log('bidPaymentData', bidPaymentData);
 
 		if (lib.isPriceHigherThan(auction.actualMininumBidPriceData, bidPaymentData)) {
 			ui.notifications.warn(`Insufficient bid - you must bid more than ${auction.actualMininumBidPrice}`);

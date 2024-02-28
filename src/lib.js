@@ -193,44 +193,6 @@ export function dateNumberToRelativeString(auctioneer, date) {
  * @param {boolean|Actor} actor
  * @returns {{basePriceString: string, valid: boolean, totalPrice: number, canBuy: boolean, currencies: *[]}|(*&{valid: boolean, totalPrice: *, currencies: *})}
  */
-export function getPriceFromDataStart(priceFlag, actor = false) {
-
-	if (!priceFlag) {
-		return {
-			valid: false,
-			canBuy: false,
-			currencies: [],
-			totalPrice: 0
-		};
-	}
-
-	const paymentData = game.itempiles.API.getPaymentData(priceFlag, { target: actor });
-
-	const currencies = paymentData.finalPrices.reverse();
-
-	let primaryCurrency;
-	for (const currency of currencies) {
-		if (!currency.exchangeRate || currency.exchangeRate < 1) continue;
-		if (currency.exchangeRate === 1) {
-			primaryCurrency = currency;
-		} else if (primaryCurrency && primaryCurrency.quantity >= (currency.exchangeRate * 1000)) {
-			currency.quantity = Math.floor(primaryCurrency.quantity / currency.exchangeRate)
-			primaryCurrency.quantity -= Math.floor(primaryCurrency.quantity / currency.exchangeRate) * currency.exchangeRate;
-		}
-	}
-
-	return {
-		...paymentData,
-		valid: true,
-		currencies: currencies.reverse(),
-		totalPrice: paymentData.totalCurrencyCost + paymentData.finalPrices
-			.filter(currency => currency.secondary && currency.quantity)
-			.reduce((acc, currency) => {
-				return acc + currency.quantity;
-			}, 0)
-	};
-
-}
 export function getPriceFromData(priceFlag, actor = false) {
 
 	if (!priceFlag) {
@@ -257,7 +219,7 @@ export function getPriceFromData(priceFlag, actor = false) {
 		}
 	}
 
-	console.log('totalCurrencyCost', paymentData);
+
 
 	return {
 		...paymentData,
@@ -274,7 +236,6 @@ export function getPriceFromData(priceFlag, actor = false) {
 
 export function getValidCurrenciesForPrice(currencies) {
 
-	console.log('currenciesFROMDATA', currencies)
 	const defaultIncomingCurrencies = currencies.filter(currency => !currency.secondary);
 
 	const defaultCurrencies = defaultIncomingCurrencies.length > 0
@@ -945,7 +906,6 @@ export function getAuctioneerData(auctioneer) {
 
 
 export function makeAuction(auctioneer, source, flags) {
-	console.log('criou um leilão');
 	const auction = {};
 	auction._source = foundry.utils.mergeObject(foundry.utils.deepClone(CONSTANTS.DEFAULTS.AUCTION), source);
 	auction.type = "auction";
@@ -977,7 +937,7 @@ export function makeAuction(auctioneer, source, flags) {
 		? auction.actor?.name ?? auction.user?.name ?? "Unknown"
 		: auction.user?.name ?? auction.actor?.name ?? "Unknown";
 
-	auction.startPriceData = getPriceFromDataStart(auction._source.startPrice);
+	auction.startPriceData = getPriceFromData(auction._source.startPrice);
 	auction.buyoutPriceData = getPriceFromData(auction._source.buyoutPrice);
 	auction.reservePriceData = getPriceFromData(auction._source.reservePrice);
 	auction.minBidPriceData = getPriceFromData(auction._source.minBidPrice);
