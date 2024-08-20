@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { TJSDocument } from "@typhonjs-fvtt/runtime/svelte/store/fvtt/document";
+import { TJSDocument } from "#runtime/svelte/store/fvtt/document";
 import CONSTANTS from "~/constants.js";
 import * as lib from "~/lib.js";
 import { getCurrencies } from "~/lib.js";
@@ -238,7 +238,7 @@ export function createStore(auctioneer) {
 	}, 100);
 
 	const userHookId = Hooks.on("updateUser", (doc, data) => {
-		if (!(hasProperty(data, CONSTANTS.FLAG) || hasProperty(data, CONSTANTS.DELETE_FLAG))) return false;
+		if (!(foundry.utils.hasProperty(data, CONSTANTS.FLAG) || foundry.utils.hasProperty(data, CONSTANTS.DELETE_FLAG))) return false;
 		debounceUpdateAuctionData();
 	});
 
@@ -343,7 +343,7 @@ export function createStore(auctioneer) {
 		}
 
 		existingBids.push({
-			id: randomID(),
+			id: foundry.utils.randomID(),
 			userId: game.userId,
 			actorUuid: targetActor.uuid,
 			auctionUuid: existingBids?.[existingBidForAuctionIndex]?.uuid ?? auction.uuid,
@@ -383,7 +383,7 @@ export function createStore(auctioneer) {
 
 		const existingBuyouts = lib.getUserBuyouts();
 		existingBuyouts.push({
-			id: randomID(),
+			id: foundry.utils.randomID(),
 			userId: game.userId,
 			actorUuid: targetActor.uuid,
 			auctionUuid: auction.uuid,
@@ -528,7 +528,7 @@ export function createStore(auctioneer) {
 
 		const actor = get(actorDoc);
 
-		setProperty(data.itemData, game.itempiles.API.ITEM_QUANTITY_ATTRIBUTE, data.quantityPerAuction);
+		foundry.utils.setProperty(data.itemData, game.itempiles.API.ITEM_QUANTITY_ATTRIBUTE, data.quantityPerAuction);
 
 		const baseFlagData = {
 			userId: game.userId,
@@ -550,7 +550,7 @@ export function createStore(auctioneer) {
 		const auctions = lib.getUserAuctions();
 
 		for (let i = 0; i < data.numAuctions; i++) {
-			const id = randomID();
+			const id = foundry.utils.randomID();
 			auctions.push({
 				...baseFlagData,
 				id,
@@ -799,10 +799,10 @@ export function createStore(auctioneer) {
 		if (actor && successfulAuctionCurrencies.length) {
 			let totalFee = "";
 			let totalCurrenciesToAdd = "";
-			const auctionFee = Math.max(0, flags.auctionFee ?? 0);
+			const auctionFee = Math.max(0, Number(flags.auctionFee) ?? 0);
 			for (const { price, deposit } of successfulAuctionCurrencies) {
 
-				if (flags.auctionFee) {
+				if (auctionFee) {
 					const fee = game.itempiles.API.calculateCurrencies(price, auctionFee / 100);
 					totalFee = totalFee
 						? game.itempiles.API.calculateCurrencies(totalFee, fee, false)
@@ -888,7 +888,7 @@ export function createStore(auctioneer) {
 		const indexToRefresh = existingAuctions.findIndex(existingAuction => existingAuction.uuid === auction.uuid);
 		const duplicatedAuction = foundry.utils.deepClone(existingAuctions[indexToRefresh]);
 		existingAuctions[indexToRefresh].claimed = true;
-		duplicatedAuction.id = randomID();
+		duplicatedAuction.id = foundry.utils.randomID();
 		duplicatedAuction.uuid = `${duplicatedAuction.id}-${auctioneer.uuid}-${game.user.id}`
 		duplicatedAuction.date = lib.evaluateFoundryTime(auctioneer);
 		duplicatedAuction.expiryDate = lib.evaluateFoundryTime(auctioneer, duplicatedAuction.duration);

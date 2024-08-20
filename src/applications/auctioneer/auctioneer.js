@@ -1,4 +1,4 @@
-import { SvelteApplication } from '@typhonjs-fvtt/runtime/svelte/application';
+import { SvelteApplication } from '#runtime/svelte/application';
 import AuctioneerShell from "./auctioneer-shell.svelte";
 import * as lib from "../../lib.js";
 import CONSTANTS from "~/constants.js";
@@ -9,7 +9,7 @@ export default class Auctioneer extends SvelteApplication {
 
 	constructor(options, dialogOptions) {
 		super({
-			id: `${Auctioneer.ID}-${options.auctioneer?.id}-${randomID()}`,
+			id: `${Auctioneer.ID}-${options.auctioneer?.id}-${foundry.utils.randomID()}`,
 			title: options.auctioneer.name,
 			...options,
 		}, dialogOptions);

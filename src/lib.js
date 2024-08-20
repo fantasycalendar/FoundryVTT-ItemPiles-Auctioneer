@@ -58,7 +58,7 @@ export async function addCurrencies(actor, totalCurrenciesToAdd) {
 		return game.itempiles.API.addCurrencies(actor, totalCurrenciesToAdd);
 	}
 
-	const currenciesToAdd = game.itempiles.API.getCurrenciesFromString(totalCurrenciesToAdd).currencies
+	const currenciesToAdd = game.itempiles.API.getCurrenciesFromString(totalCurrenciesToAdd)
 		.filter(currency => isRealNumber(currency.quantity) && currency.quantity > 0);
 
 	const itemsToAdd = currenciesToAdd.filter(currency => currency.type === "item")
@@ -70,7 +70,6 @@ export async function addCurrencies(actor, totalCurrenciesToAdd) {
 	const transaction = new game.itempiles.API.Transaction(actor);
 	await transaction.appendItemChanges(itemsToAdd, { type: "currency" });
 	await transaction.appendActorChanges(attributesToAdd, { type: "currency" });
-	transaction.prepare();
 	return transaction.commit();
 
 }
@@ -81,13 +80,7 @@ export async function removeCurrencies(actor, totalCurrenciesToRemove) {
 		return game.itempiles.API.removeCurrencies(actor, totalCurrenciesToRemove);
 	}
 
-	const priceData = game.itempiles.API.getCurrenciesFromString(totalCurrenciesToRemove);
-	const secondaryPrices = priceData.currencies.filter(currency => currency.secondary && currency.quantity);
-	const overallCost = priceData.overallCost;
-
-	const paymentData = game.itempiles.API.getPaymentData({
-		purchaseData: [{ cost: overallCost, quantity: 1, secondaryPrices }], buyer: actor
-	});
+	const paymentData = game.itempiles.API.getPaymentData(totalCurrenciesToRemove, { buyer: actor });
 
 	const itemsToRemove = paymentData.finalPrices.filter(currency => currency.type === "item" && currency.quantity)
 		.map(currency => ({ item: currency.data.item, quantity: currency.quantity }));
@@ -106,7 +99,6 @@ export async function removeCurrencies(actor, totalCurrenciesToRemove) {
 	await transaction.appendActorChanges(attributesToRemove, { type: "currency", remove: true });
 	await transaction.appendItemChanges(itemsToAdd, { type: "currency" });
 	await transaction.appendActorChanges(attributesToAdd, { type: "currency" });
-	transaction.prepare();
 	return transaction.commit();
 
 }
@@ -294,7 +286,7 @@ export function getCurrencies(actor) {
 }
 
 export function turnCurrenciesIntoString(currencies, abbreviate = false) {
-	return currencies.filter(currencies => currencies.quantity)
+	return currencies.filter(currency => currency.quantity)
 		.reduce((acc, currency) => {
 			const quantity = abbreviate ? abbreviateNumbers(currency.quantity) + " " : currency.quantity;
 			return `${acc} ${currency.abbreviation.replace('{#}', quantity)}`;
@@ -402,7 +394,7 @@ export function getItemColorElement(item) {
 
 export function evaluateFormula(formula, data, warn = false) {
 	const rollFormula = Roll.replaceFormulaData(formula, data, { warn });
-	return new Roll(rollFormula).evaluate({ async: false });
+	return new Roll(rollFormula).evaluateSync();
 }
 
 export function isActiveGM(user) {
