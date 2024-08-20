@@ -211,10 +211,12 @@ export function getPriceFromData(priceFlag, actor = false) {
 		}
 	}
 
+
+
 	return {
 		...paymentData,
 		valid: true,
-		currencies: currencies.reverse().filter(currency => currency.quantity),
+		currencies: currencies.reverse(),
 		totalPrice: paymentData.totalCurrencyCost + paymentData.finalPrices
 			.filter(currency => currency.secondary && currency.quantity)
 			.reduce((acc, currency) => {
@@ -921,6 +923,7 @@ export function makeAuction(auctioneer, source, flags) {
 	auction.reservePrice = auction._source.reservePrice;
 	auction.minBidPrice = auction._source.minBidPrice;
 	auction.depositPrice = auction._source.depositPrice;
+
 
 	auction.displayName = flags.showActorName
 		? auction.actor?.name ?? auction.user?.name ?? "Unknown"
