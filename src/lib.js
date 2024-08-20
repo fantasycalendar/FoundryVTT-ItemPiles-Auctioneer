@@ -214,7 +214,7 @@ export function getPriceFromData(priceFlag, actor = false) {
 	return {
 		...paymentData,
 		valid: true,
-		currencies: currencies.reverse().filter(currency => currency.quantity),
+		currencies: currencies.reverse().filter(currency => currency.cost),
 		totalPrice: paymentData.totalCurrencyCost + paymentData.finalPrices
 			.filter(currency => currency.secondary && currency.quantity)
 			.reduce((acc, currency) => {

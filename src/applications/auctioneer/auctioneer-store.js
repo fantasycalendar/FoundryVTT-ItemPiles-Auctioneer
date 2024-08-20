@@ -87,31 +87,31 @@ export function createStore(auctioneer) {
 				selected: "",
 				sortBy: "name",
 				sortByInverse: false,
-				switch: "price",
+				switch: "start-price",
 				sortByColumns: {
 					"name": { label: "Name", sort: (a, b) => a.item.name > b.item.name ? 1 : -1 },
 					"time": { label: "Time", sort: (a, b) => b.timeLeft.value - a.timeLeft.value },
 					"high-bidder": { label: "High Bidder", sort: (a, b) => a.actor.name > b.actor.name ? 1 : -1 },
 					"bid-type": { label: "Type", sort: (a, b) => a.bidVisibility > b.bidVisibility ? 1 : -1 },
-					"price": {
-						label: "Bid/Reserve Price",
+					"start-price": {
+						label: "Current Bid / Reserve",
 						sort: (a, b) => {
 							return b.bidPriceData.totalPrice - a.bidPriceData.totalPrice
 						},
 						tooltip: "Current Bid Price & Reserve Price",
 						visible: (_, store) => {
-							return store.tabs.auctions.switch === "price";
-						},
-						switch: "start-price"
-					},
-					"start-price": {
-						label: "Start/Buyout Price",
-						sort: (a, b) => b.totalPrice - a.totalPrice,
-						tooltip: "Start Price & Buyout Price",
-						visible: (_, store) => {
 							return store.tabs.auctions.switch === "start-price";
 						},
 						switch: "price"
+					},
+					"price": {
+						label: "Start Price / Buyout",
+						sort: (a, b) => b.totalPrice - a.totalPrice,
+						tooltip: "Start Price & Buyout Price",
+						visible: (_, store) => {
+							return store.tabs.auctions.switch === "price";
+						},
+						switch: "start-price"
 					},
 				}
 			},
