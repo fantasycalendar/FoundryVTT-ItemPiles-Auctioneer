@@ -19,7 +19,11 @@
 	function getValidActors(){
 		validActors = game.actors.filter(actor => {
 			return actor.isOwner
-				|| ($flagStore.allowBankerVaults && actor.getFlag("item_piles_bankers", "vaultUserId") === game.userId);
+				|| (
+					game.modules.get("item_piles_bankers")?.active
+					&& $flagStore.allowBankerVaults
+					&& actor.getFlag("item_piles_bankers", "vaultUserId") === game.userId
+				);
 		}).map(actor => {
 				const actorFlagData = game.itempiles.API.getActorFlagData(actor);
 				const selectable = actor.isOwner || lib.getActiveGMs().length;
